@@ -23,6 +23,9 @@
 
 const TOKEN = 'ascend-2026';
 
+// Commission fields are intentionally not in this map. The script will not
+// emit them in the JSONP response, so anyone hitting the endpoint with
+// DevTools open won't see commission data even though it exists in the sheet.
 const HEADER_ALIASES = {
   'first name':       ['first name', 'first', 'firstname'],
   'last name':        ['last name', 'last', 'lastname'],
@@ -39,8 +42,6 @@ const HEADER_ALIASES = {
   'lender':           ['lender'],
   'title':            ['title', 'title company'],
   'source':           ['source', 'lead source'],
-  'total commission': ['total commission', 'gross commission', 'gross commission income', 'gci'],
-  'agency commission':['agency commission', 'company dollar', 'agency $'],
   'status':           ['status', 'deal status'],
   'notes':            ['notes', 'note', 'comments']
 };

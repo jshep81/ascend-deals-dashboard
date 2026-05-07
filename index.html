@@ -672,19 +672,17 @@ function renderYTD() {
   const ytd = allRows.filter(r => r.closeDate && r.closeDate.getFullYear() === yr);
   const totalCount = ytd.length;
   const totalVol = ytd.reduce((s,r)=>s+r.price,0);
-  // commission intentionally not surfaced on the dashboard (sensitive)
-  const closed = ytd.filter(r => /closed/i.test(r.status)).length;
-  const pending = ytd.filter(r => r.status && !/closed|terminat/i.test(r.status)).length;
+  // commission and "closed" intentionally not surfaced — closed status was unreliable
+  const pending = ytd.filter(r => r.status && !/terminat/i.test(r.status)).length;
   const terminated = ytd.filter(r => /terminat/i.test(r.status)).length;
   const agentCount = new Set(ytd.map(r=>r.agent)).size;
 
   // Monthly trend
-  const byMonth = Array.from({length:12}, ()=>({deals:0,volume:0,closed:0}));
+  const byMonth = Array.from({length:12}, ()=>({deals:0,volume:0}));
   ytd.forEach(r => {
     const m = r.closeDate.getMonth();
     byMonth[m].deals++;
     byMonth[m].volume += r.price || 0;
-    if (/closed/i.test(r.status)) byMonth[m].closed++;
   });
   const maxVol = Math.max(1, ...byMonth.map(m=>m.volume));
 
@@ -715,7 +713,6 @@ function renderYTD() {
   document.getElementById('ytd-content').innerHTML = `
     <div class="metrics">
       <div class="metric"><div class="metric-label">Contracts ${yr}</div><div class="metric-value">${totalCount}</div></div>
-      <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closed}</div></div>
       <div class="metric"><div class="metric-label">Pending</div><div class="metric-value">${pending}</div></div>
       <div class="metric"><div class="metric-label">Terminated</div><div class="metric-value">${terminated}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
@@ -727,11 +724,10 @@ function renderYTD() {
     <div class="card">
       <div class="card-header">Monthly trend — ${yr}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Month</th><th class="r">Deals</th><th class="r">Closed</th><th class="r">Volume</th><th>Pace</th></tr></thead>
+        <thead><tr><th>Month</th><th class="r">Deals</th><th class="r">Volume</th><th>Pace</th></tr></thead>
         <tbody>${byMonth.map((m,i)=>`<tr>
           <td>${MONTHS_SHORT[i]}</td>
           <td class="r">${m.deals||'—'}</td>
-          <td class="r muted">${m.closed||'—'}</td>
           <td class="r num" style="font-weight:500">${m.volume?fmtM(m.volume):'—'}</td>
           <td><div class="bar-bg" style="width:120px"><div class="bar-fill" style="width:${m.volume?Math.round(m.volume/maxVol*100):0}%"></div></div></td>
         </tr>`).join('')}</tbody>
@@ -802,7 +798,6 @@ function renderMonth() {
   });
 
   const tv = filtered.reduce((s,r)=>s+r.price,0);
-  const closedCount = filtered.filter(r=>/closed/i.test(r.status)).length;
   const agentList = groupByAgent(filtered);
   const topByDeals = topAgentsTied(agentList, 'deals');
   const topByVolume = topAgentsTied(agentList, 'volume');
@@ -813,7 +808,6 @@ function renderMonth() {
   document.getElementById('month-content').innerHTML = `
     <div class="metrics">
       <div class="metric"><div class="metric-label">Contracts</div><div class="metric-value">${filtered.length}</div></div>
-      <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closedCount}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
       ${tiedTopCard('Top — deals',  topByDeals,  'deals')}
       ${overlap(topByDeals, topByVolume) ? '' : tiedTopCard('Top — volume', topByVolume, 'volume')}
@@ -928,11 +922,9 @@ function renderTeam() {
   const rows = allRows;
   const tv = rows.reduce((s,r)=>s+r.price,0);
   const agentCount = new Set(rows.map(r=>r.agent)).size;
-  const closed = rows.filter(r=>/closed/i.test(r.status)).length;
   document.getElementById('team-metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Total agents</div><div class="metric-value">${agentCount}</div></div>
     <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
-    <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closed}</div></div>
     <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
   `;
 
