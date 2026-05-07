@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascend Group — Deals Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #F9F7F3;
+  --cream-dark: #F0EDE6;
+  --cream-border: #E4E0D8;
+  --black: #1A1814;
+  --black-soft: #2C2A26;
+  --gray: #6B6860;
+  --gray-light: #9C9A96;
+  --green: #2D5A3D;
+  --green-light: #EAF2EC;
+  --green-mid: #4A8C5C;
+  --blue: #1B3A6B;
+  --blue-light: #E8EEF8;
+  --blue-mid: #2D5FA8;
+  --amber: #7A4A0E;
+  --amber-light: #FBF3E8;
+  --amber-mid: #C47A1E;
+  --red: #6B1A1A;
+  --red-light: #FCF0F0;
+  --purple: #3D2B6B;
+  --purple-light: #F0EDF8;
+  --teal: #0D4D4D;
+  --teal-light: #E8F5F5;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cream); color: var(--black); font-family: var(--font-body); font-size: 13px; min-height: 100vh; }
+header { background: var(--black); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+.logo { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--cream); letter-spacing: 0.02em; }
+.logo span { color: var(--cream-border); font-weight: 400; font-size: 14px; margin-left: 12px; font-family: var(--font-body); letter-spacing: 0; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.status-pill { font-size: 11px; padding: 3px 10px; border-radius: 99px; border: 0.5px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 5px; }
+.status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-mid); }
+.refresh-btn { background: rgba(255,255,255,0.1); border: 0.5px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.8); padding: 5px 14px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: var(--font-body); transition: background 0.15s; }
+.refresh-btn:hover { background: rgba(255,255,255,0.18); }
+.main-nav { background: var(--cream-dark); border-bottom: 1px solid var(--cream-border); padding: 0 2rem; display: flex; gap: 0; overflow-x: auto; }
+.main-nav::-webkit-scrollbar { display: none; }
+.main-tab { padding: 12px 18px; font-weight: 500; color: var(--gray); cursor: pointer; border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-family: var(--font-body); letter-spacing: 0.02em; text-transform: uppercase; font-size: 11px; transition: color 0.15s; }
+.main-tab:hover { color: var(--black); }
+.main-tab.active { color: var(--black); border-bottom: 2px solid var(--black); }
+.main-tab.sep { border-right: 1px solid var(--cream-border); margin-right: 4px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+.pane { display: none; }
+.pane.active { display: block; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.metric { background: white; border: 1px solid var(--cream-border); border-radius: 10px; padding: 1rem 1.25rem; }
+.metric-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-light); margin-bottom: 6px; font-weight: 500; }
+.metric-value { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--black); line-height: 1; }
+.metric-value.sm { font-size: 18px; margin-top: 2px; }
+.card { background: white; border: 1px solid var(--cream-border); border-radius: 10px; overflow: hidden; margin-bottom: 1.25rem; }
+.card-header { padding: 12px 16px; border-bottom: 1px solid var(--cream-border); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray); display: flex; align-items: center; justify-content: space-between; }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-light); text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--cream-border); white-space: nowrap; background: var(--cream); }
+th.r, td.r { text-align: right; }
+tbody tr { border-bottom: 1px solid var(--cream-border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--cream); }
+td { padding: 10px 14px; color: var(--black-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+td.muted { color: var(--gray-light); font-size: 11px; }
+td.num { font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 500; white-space: nowrap; letter-spacing: 0.01em; }
+.s-da { background: var(--teal-light); color: var(--teal); }
+.s-zillow { background: var(--blue-light); color: var(--blue); }
+.s-fub { background: var(--purple-light); color: var(--purple); }
+.s-backagent { background: var(--amber-light); color: var(--amber); }
+.s-closed { background: var(--green-light); color: var(--green); }
+.s-docs { background: #FEF3E8; color: #7A3A0E; }
+.s-review { background: var(--cream-dark); color: var(--gray); }
+.s-term { background: var(--red-light); color: var(--red); }
+.s-pending { background: #FEF3E8; color: #7A3A0E; }
+.market-austin { background: var(--blue-light); color: var(--blue); }
+.market-sa { background: var(--amber-light); color: var(--amber); }
+.market-houston { background: var(--purple-light); color: var(--purple); }
+.market-other { background: var(--cream-dark); color: var(--gray); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+.agent-cell { display: flex; align-items: center; gap: 10px; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+select, input[type=text] { font-size: 12px; padding: 6px 12px; border: 1px solid var(--cream-border); border-radius: 6px; background: white; color: var(--black); font-family: var(--font-body); outline: none; transition: border-color 0.15s; }
+select:focus, input[type=text]:focus { border-color: var(--gray); }
+input[type=text] { min-width: 220px; }
+.bar-bg { width: 64px; height: 3px; background: var(--cream-dark); border-radius: 2px; margin-top: 4px; }
+.bar-fill { height: 3px; border-radius: 2px; background: var(--black); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+.month-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--cream-border); margin-bottom: 1.5rem; overflow-x: auto; }
+.month-tabs::-webkit-scrollbar { height: 3px; }
+.month-tabs::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 2px; }
+.month-tab { padding: 8px 14px; font-size: 11px; font-weight: 500; color: var(--gray); cursor: pointer; border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-family: var(--font-body); display: flex; align-items: center; gap: 5px; transition: color 0.15s; }
+.month-tab:hover { color: var(--black); }
+.month-tab.active { color: var(--black); border-bottom: 2px solid var(--black); font-weight: 500; }
+.current-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green-mid); }
+.empty-state { padding: 3rem; text-align: center; color: var(--gray-light); font-size: 12px; }
+.error-banner { padding: .875rem 1.25rem; background: var(--red-light); color: var(--red); border-radius: 8px; font-size: 12px; margin-bottom: 1.25rem; border: 1px solid #F5CCCC; }
+.warn-banner { padding: .875rem 1.25rem; background: var(--amber-light); color: var(--amber); border-radius: 8px; font-size: 12px; margin-bottom: 1.25rem; border: 1px solid #E8D4A8; }
+.warn-banner b { font-weight: 600; }
+.spin { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rank-num { font-size: 11px; color: var(--gray-light); width: 18px; text-align: right; }
+.kbd-hint { font-size: 10px; color: var(--gray-light); padding: 2px 6px; background: var(--cream); border: 1px solid var(--cream-border); border-radius: 4px; font-family: monospace; }
+@media (max-width: 768px) { .three-col, .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .container { padding: 1rem; } header { padding: 0 1rem; } .main-nav { padding: 0 1rem; } .logo span { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Ascend Group <span>Deals Dashboard</span></div>
+  <div class="header-right">
+    <div class="status-pill" id="status-pill">
+      <span class="dot"></span>
+      <span id="status-text">Loading...</span>
+    </div>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</header>
+
+<nav class="main-nav">
+  <button class="main-tab sep active" data-pane="ytd" onclick="switchMain(this)">YTD</button>
+  <button class="main-tab" data-pane="monthly" onclick="switchMain(this)">Monthly</button>
+  <button class="main-tab" data-pane="agents" onclick="switchMain(this)">Agents</button>
+  <button class="main-tab" data-pane="team" onclick="switchMain(this)">Team</button>
+  <button class="main-tab" data-pane="roster" onclick="switchMain(this)">Roster</button>
+</nav>
+
+<div class="container">
+  <div id="error-box"></div>
+  <div id="warn-box"></div>
+
+  <!-- YTD PANE -->
+  <div id="pane-ytd" class="pane active">
+    <div id="ytd-content"><div class="empty-state"><span class="spin">↻</span> Loading data...</div></div>
+  </div>
+
+  <!-- MONTHLY PANE -->
+  <div id="pane-monthly" class="pane">
+    <div class="month-tabs" id="month-tabs"></div>
+    <div id="month-content"><div class="empty-state"><span class="spin">↻</span> Loading data...</div></div>
+  </div>
+
+  <!-- AGENTS PANE -->
+  <div id="pane-agents" class="pane">
+    <div class="metrics" id="agent-metrics"></div>
+    <div class="filter-row">
+      <select id="mkt-filter" onchange="renderAgents()">
+        <option value="all">All markets</option>
+      </select>
+      <select id="sort-filter" onchange="renderAgents()">
+        <option value="volume">Sort: volume</option>
+        <option value="deals">Sort: deals</option>
+        <option value="commission">Sort: commission</option>
+        <option value="name">Sort: name</option>
+      </select>
+      <select id="status-filter" onchange="renderAgents()">
+        <option value="all">All statuses</option>
+      </select>
+      <input type="text" id="agent-search" placeholder="Search agent..." oninput="renderAgents()">
+    </div>
+    <div class="card"><div class="tbl-wrap"><table>
+      <thead><tr>
+        <th style="width:22px">#</th>
+        <th style="min-width:180px">Agent</th>
+        <th class="r">Deals</th>
+        <th class="r">Volume</th>
+        <th class="r">Avg price</th>
+        <th class="r">Commission</th>
+        <th>Markets</th>
+      </tr></thead>
+      <tbody id="agent-tbody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+    </table></div></div>
+  </div>
+
+  <!-- TEAM PANE -->
+  <div id="pane-team" class="pane">
+    <div class="metrics" id="team-metrics"></div>
+    <div class="three-col">
+      <div class="card">
+        <div class="card-header">By market</div>
+        <table><thead><tr><th>Market</th><th class="r">Deals</th><th class="r">Volume</th></tr></thead>
+        <tbody id="market-tbody"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-header">By source</div>
+        <table><thead><tr><th>Source</th><th class="r">Deals</th><th class="r">Volume</th></tr></thead>
+        <tbody id="source-tbody"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-header">By status</div>
+        <table><thead><tr><th>Status</th><th class="r">Count</th><th class="r">%</th></tr></thead>
+        <tbody id="teamstatus-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Full leaderboard — all time</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="width:22px">#</th>
+          <th style="min-width:180px">Agent</th>
+          <th class="r">Deals</th>
+          <th class="r">Volume</th>
+          <th class="r">Avg price</th>
+          <th class="r">Commission</th>
+          <th>Top status</th>
+        </tr></thead>
+        <tbody id="team-tbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ROSTER PANE -->
+  <div id="pane-roster" class="pane">
+    <div class="card">
+      <div class="card-header">Name reconciliation
+        <span style="text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-light)">Every name in the sheet → canonical roster name</span>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="min-width:200px">Sheet name</th>
+          <th style="min-width:200px">Resolves to</th>
+          <th class="r">Deals</th>
+          <th class="r">Volume</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody id="roster-tbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// CONFIG — edit these two constants when you have the values
+// ================================================================
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyeqmqpUJA5qAENMtAmW8NkoRmZ7s24XUZ-qHT38UkuClmVjlPfEqej69iFuI1y8_D4/exec';
+const TOKEN = 'ascend-2026';
+
+// Canonical roster — Ascend Group team as of May 2026.
+// Each entry: { canonical: 'Full Name', market: 'Austin'|'San Antonio'|'Houston'|'N/A',
+//   role: 'Agent'|'Admin', aliases: ['variants seen in the sheet'] }
+// The resolver also does a loose first-name + last-name match (with middle names allowed),
+// so aliases only need to cover: first-name-only references (when unique), known
+// nicknames, and email-local-part variants. Add to this list as new agents come in.
+const ROSTER = [
+  { canonical: 'Adam Williams',       market: 'N/A',         role: 'Admin', aliases: ['adam', 'adam.williams'] },
+  { canonical: 'Alan Foskey',         market: 'Austin',      role: 'Agent', aliases: ['alan'] },
+  { canonical: 'Alex Ellis',          market: 'Austin',      role: 'Agent', aliases: ['alex'] },
+  { canonical: 'Alyssa Laube',        market: 'Austin',      role: 'Agent', aliases: ['alyssa.laube', 'a. laube'] },
+  { canonical: 'Alyssa McGrath',      market: 'Austin',      role: 'Agent', aliases: ['a. mcgrath'] },
+  { canonical: 'Amber Knox',          market: 'Houston',     role: 'Admin', aliases: ['amber', 'amber.knox'] },
+  { canonical: 'Analeisa Barron',     market: 'Austin',      role: 'Agent', aliases: ['analeisa'] },
+  { canonical: 'Ashley Garcia',       market: 'Austin',      role: 'Agent', aliases: ['a. garcia'] },
+  { canonical: 'Ashley Cadena',       market: 'Austin',      role: 'Agent', aliases: ['ashley.cadena', 'a. cadena'] },
+  { canonical: 'Ashley Nicholson',    market: 'San Antonio', role: 'Agent', aliases: ['ashley.nicholson', 'a. nicholson'] },
+  { canonical: 'Benjamin Laurena',    market: 'N/A',         role: 'Admin', aliases: ['benjamin', 'ben', 'ben laurena'] },
+  { canonical: 'Beth Martin',         market: 'Austin',      role: 'Agent', aliases: ['beth'] },
+  { canonical: 'Bethany Vrooman',     market: 'Austin',      role: 'Admin', aliases: ['bethany'] },
+  { canonical: 'Bonnie Matthews',     market: 'Austin',      role: 'Agent', aliases: ['bonnie'] },
+  { canonical: 'Brandon Foskey',      market: 'Austin',      role: 'Agent', aliases: ['brandon'] },
+  { canonical: 'Brian Schaffer',      market: 'Austin',      role: 'Agent', aliases: ['brian'] },
+  { canonical: 'Brianna Hodges',      market: 'San Antonio', role: 'Agent', aliases: ['brianna'] },
+  { canonical: 'Brooke Taylor',       market: 'San Antonio', role: 'Agent', aliases: ['brooke', 'brooke.taylor'] },
+  { canonical: 'Byron Alley',         market: 'Houston',     role: 'Agent', aliases: ['byron', 'bryon', 'bryon alley'] },
+  { canonical: 'Caitlan Wells',       market: 'Austin',      role: 'Agent', aliases: ['caitlan'] },
+  { canonical: 'Caitlyn Niemie',      market: 'Austin',      role: 'Agent', aliases: ['caitlyn'] },
+  { canonical: 'Carly Kluge',         market: 'Austin',      role: 'Agent', aliases: ['carly'] },
+  { canonical: 'Chase Jones',         market: 'Austin',      role: 'Agent', aliases: ['chase'] },
+  { canonical: 'Chris Garza',         market: 'San Antonio', role: 'Agent', aliases: ['chris', 'chris.garza'] },
+  { canonical: 'Cindy Jamison',       market: 'Austin',      role: 'Agent', aliases: ['cindy'] },
+  { canonical: 'Courtney Sanders',    market: 'Austin',      role: 'Admin', aliases: ['courtney'] },
+  { canonical: 'Crystal Elder',       market: 'Austin',      role: 'Agent', aliases: ['crystal'] },
+  { canonical: 'Dana Scott',          market: 'San Antonio', role: 'Agent', aliases: ['dana'] },
+  { canonical: 'Daphne Arender',      market: 'Austin',      role: 'Agent', aliases: ['daphne', 'daphne.arender'] },
+  { canonical: 'Desmond McClinton',   market: 'Austin',      role: 'Agent', aliases: ['desmond'] },
+  { canonical: 'Devon Harrington',    market: 'Austin',      role: 'Agent', aliases: ['devon'] },
+  { canonical: 'Enrique Cordova',     market: 'Austin',      role: 'Agent', aliases: ['enrique'] },
+  { canonical: 'Erwin Malveda',       market: 'N/A',         role: 'Admin', aliases: ['erwin'] },
+  { canonical: 'Eugenia Caballero',   market: 'Austin',      role: 'Agent', aliases: ['eugenia', 'eugeniac'] },
+  { canonical: 'Fate Zayed',          market: 'Austin',      role: 'Agent', aliases: ['fate'] },
+  { canonical: 'Gabe Bramlette',      market: 'Austin',      role: 'Agent', aliases: ['gabe'] },
+  { canonical: 'Geoff Carl',          market: 'San Antonio', role: 'Agent', aliases: ['geoff'] },
+  { canonical: 'George Gavito',       market: 'San Antonio', role: 'Admin', aliases: ['george'] },
+  { canonical: 'Giselle Mireles',     market: 'Austin',      role: 'Agent', aliases: ['giselle'] },
+  { canonical: 'Hariette Cortez',     market: 'N/A',         role: 'Admin', aliases: ['hariette', 'harriette', 'harriette cortez'] },
+  { canonical: 'Heather Pasek',       market: 'San Antonio', role: 'Agent', aliases: ['heather'] },
+  { canonical: 'Henry Shamdas',       market: 'San Antonio', role: 'Agent', aliases: ['henry'] },
+  { canonical: 'Isaac Chavez',        market: 'Austin',      role: 'Agent', aliases: ['isaac'] },
+  { canonical: 'Jade Skaggs',         market: 'Austin',      role: 'Agent', aliases: ['jade'] },
+  { canonical: 'James Taylor',        market: 'Austin',      role: 'Agent', aliases: ['j. taylor'] },
+  { canonical: 'James Packer',        market: 'Austin',      role: 'Agent', aliases: ['casey', 'casey packer', 'casey.packer', 'j. packer'] },
+  { canonical: 'Jason Iglesias',      market: 'Austin',      role: 'Agent', aliases: ['jason'] },
+  { canonical: 'Jean Guinang',        market: 'N/A',         role: 'Admin', aliases: ['jean'] },
+  { canonical: 'Jeff Riberdy',        market: 'Austin',      role: 'Agent', aliases: ['jeff', 'jeff.riberdy'] },
+  { canonical: 'Jodilinn Porras',     market: 'Austin',      role: 'Agent', aliases: ['jodilinn', 'jodi', 'jodi porras'] },
+  { canonical: 'Joelle Bach',         market: 'Austin',      role: 'Agent', aliases: ['joelle', 'joelle.bach'] },
+  { canonical: 'Johnny Longoria',     market: 'San Antonio', role: 'Agent', aliases: ['johnny longoria jr', 'j. longoria'] },
+  { canonical: 'Johnny Longoria Sr.', market: 'San Antonio', role: 'Agent', aliases: ['johnny longoria sr', 'johnny.longoria', 'longoria sr'] },
+  { canonical: 'Joyce Sumiran',       market: 'N/A',         role: 'Admin', aliases: ['joyce'] },
+  { canonical: 'Justin Burton',       market: 'San Antonio', role: 'Agent', aliases: ['j. burton', 'justin.burton'] },
+  { canonical: 'Justin Sheppard',     market: 'Austin',      role: 'Admin', aliases: ['j. sheppard', 'jshep', 'jshep81'] },
+  { canonical: 'Kari Lee Hutchins',   market: 'Austin',      role: 'Agent', aliases: ['kari', 'kari lee', 'kari hutchins', 'kari.lee', 'karilee'] },
+  { canonical: 'Kathleen Dominguez',  market: 'Austin',      role: 'Agent', aliases: ['kathleen', 'kat', 'kat dominguez', 'kat.dominguez'] },
+  { canonical: 'Kaylnne Martin',      market: 'Austin',      role: 'Agent', aliases: ['kaylnne', 'kaylynne', 'kaylynne martin'] },
+  { canonical: 'Kristin Brownlow',    market: 'Austin',      role: 'Agent', aliases: ['kristin'] },
+  { canonical: 'Kyle Roberts',        market: 'Austin',      role: 'Agent', aliases: ['kyle', 'kyle.roberts'] },
+  { canonical: 'Laura Vinson',        market: 'Austin',      role: 'Agent', aliases: ['laura.vinson', 'l. vinson'] },
+  { canonical: 'Laura Wallace',       market: 'San Antonio', role: 'Agent', aliases: ['laura.wallace', 'l. wallace'] },
+  { canonical: 'Laura Smierciak',     market: 'San Antonio', role: 'Admin', aliases: ['lauras', 'l. smierciak'] },
+  { canonical: 'Linda Russell',       market: 'Austin',      role: 'Agent', aliases: ['linda', 'linda.russell'] },
+  { canonical: 'Lou Sanchez',         market: 'Austin',      role: 'Agent', aliases: ['lou'] },
+  { canonical: 'Marianne Schaffer',   market: 'Austin',      role: 'Agent', aliases: ['marianne'] },
+  { canonical: 'Mark Beel',           market: 'Houston',     role: 'Agent', aliases: ['mark', 'mark.beel'] },
+  { canonical: 'Markos Terrazas',     market: 'Austin',      role: 'Agent', aliases: ['markos'] },
+  { canonical: 'Mary Lawrence',       market: 'Houston',     role: 'Admin', aliases: ['mary'] },
+  { canonical: 'Matt McDaniel',       market: 'Austin',      role: 'Agent', aliases: ['matt mcdaniel', 'matthew mcdaniel'] },
+  { canonical: 'Matt Henson',         market: 'Austin',      role: 'Agent', aliases: ['matt henson', 'matthew henson', 'matt.henson'] },
+  { canonical: 'Melissa Cesena',      market: 'Austin',      role: 'Agent', aliases: ['m. cesena'] },
+  { canonical: 'Melissa Robbins',     market: 'San Antonio', role: 'Agent', aliases: ['melissa.robbins', 'm. robbins'] },
+  { canonical: 'Michell Atkins',      market: 'Austin',      role: 'Agent', aliases: ['michell', 'michelle', 'michelle atkins', 'm. atkins'] },
+  { canonical: 'Mike Diener',         market: 'Austin',      role: 'Agent', aliases: ['mike', 'michael diener', 'mike.diener'] },
+  { canonical: 'Morana Duran',        market: 'Austin',      role: 'Agent', aliases: ['morana', 'mo', 'mo duran'] },
+  { canonical: 'Nate Dominguez',      market: 'Austin',      role: 'Agent', aliases: ['nate', 'nathan dominguez', 'nate.dominguez'] },
+  { canonical: 'Nicholas Wilt',       market: 'Austin',      role: 'Agent', aliases: ['nicholas', 'nick', 'nick wilt', 'nicholas.wilt'] },
+  { canonical: 'Nikos Kourtis',       market: 'San Antonio', role: 'Agent', aliases: ['nikos'] },
+  { canonical: 'Niles Haworth',       market: 'Houston',     role: 'Agent', aliases: ['niles'] },
+  { canonical: 'Phoebe Sagayno',      market: 'N/A',         role: 'Admin', aliases: ['phoebe'] },
+  { canonical: 'Racine Byers',        market: 'Austin',      role: 'Admin', aliases: ['racine', 'racine.byers'] },
+  { canonical: 'Rao Hamza',           market: 'N/A',         role: 'Admin', aliases: ['rao'] },
+  { canonical: 'Remi McDonnell',      market: 'Austin',      role: 'Agent', aliases: ['remi'] },
+  { canonical: 'Rhea Morton',         market: 'Austin',      role: 'Agent', aliases: ['rhea'] },
+  { canonical: 'Rhett King',          market: 'Austin',      role: 'Agent', aliases: ['rhett'] },
+  { canonical: 'Richard Dominguez',   market: 'Austin',      role: 'Agent', aliases: ['richard', 'rich dominguez'] },
+  { canonical: 'Rosstum Allauigan',   market: 'N/A',         role: 'Admin', aliases: ['rosstum'] },
+  { canonical: 'Ryan Vinson',         market: 'Austin',      role: 'Agent', aliases: ['ryan', 'ryan.vinson'] },
+  { canonical: 'Sam Behzadian',       market: 'Austin',      role: 'Agent', aliases: ['sam', 'sam.behzadian'] },
+  { canonical: 'Sarah Morris',        market: 'Austin',      role: 'Agent', aliases: ['sarah'] },
+  { canonical: 'Shane Brysch',        market: 'San Antonio', role: 'Agent', aliases: ['shane'] },
+  { canonical: 'Shari Pagiatakis',    market: 'San Antonio', role: 'Agent', aliases: ['shari'] },
+  { canonical: 'Sheila Bugay',        market: 'N/A',         role: 'Admin', aliases: ['sheila'] },
+  { canonical: 'Stephanie Goldin',    market: 'Austin',      role: 'Agent', aliases: ['stephanie', 'steph goldin', 'stephanie.goldin'] },
+  { canonical: 'Steven Cuevas',       market: 'Austin',      role: 'Agent', aliases: ['s. cuevas', 'steve cuevas'] },
+  { canonical: 'Steven Morris',       market: 'Austin',      role: 'Agent', aliases: ['s. morris', 'steve morris', 'steven.morris'] },
+  { canonical: 'Summer Zayed',        market: 'Austin',      role: 'Agent', aliases: ['summer'] },
+  { canonical: 'Thomas Brown',        market: 'Austin',      role: 'Admin', aliases: ['thomas', 'tom brown', 'tom'] },
+  { canonical: 'Val Steenblik',       market: 'Austin',      role: 'Agent', aliases: ['val', 'valentino', 'valentino steenblik'] },
+  { canonical: 'Vlatka Auerbach',     market: 'Austin',      role: 'Agent', aliases: ['vlatka'] },
+  { canonical: 'Wade Wallace',        market: 'San Antonio', role: 'Agent', aliases: ['wade'] },
+  { canonical: 'William Bach',        market: 'Austin',      role: 'Agent', aliases: ['william', 'will', 'will bach', 'will.bach'] },
+  { canonical: 'Zaid Rafati',         market: 'San Antonio', role: 'Agent', aliases: ['zaid'] }
+];
+
+// ================================================================
+// CONSTANTS
+// ================================================================
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const AVATAR_BG = ['#E8EEF8','#EAF2EC','#FBF3E8','#F0EDF8','#FEF3E8','#E8F5F5','#F0EDE6','#FCF0F0'];
+const AVATAR_TX = ['#1B3A6B','#2D5A3D','#7A4A0E','#3D2B6B','#7A3A0E','#0D4D4D','#6B6860','#6B1A1A'];
+
+let allRows = [];
+let activeMonth = null;
+let lastLoadedAt = null;
+let nameResolutionStats = []; // for roster pane
+
+// ================================================================
+// HELPERS
+// ================================================================
+function avatarStyle(n) {
+  const i = Math.abs((n||'?').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % 8;
+  return `background:${AVATAR_BG[i]};color:${AVATAR_TX[i]}`;
+}
+function initials(n) { if(!n)return'?'; const p=n.trim().split(/\s+/); return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+function fmtM(n) { if(!n||isNaN(n))return'—'; return n>=1000000?'$'+(n/1000000).toFixed(1)+'M':'$'+(n/1000).toFixed(0)+'K'; }
+function fmtFull(n) { if(!n||isNaN(n))return'—'; return'$'+Math.round(n).toLocaleString(); }
+function parseNum(v) { if(v===null||v===undefined||v==='')return 0; const n=parseFloat(String(v).replace(/[$,\s]/g,'')); return isNaN(n)?0:n; }
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function parseDate(v) {
+  if(!v) return null;
+  const s = String(v).trim();
+  if(!s) return null;
+  // ISO from Apps Script Date
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // M/D/YYYY
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slash) {
+    const yr = parseInt(slash[3]);
+    const d = new Date(yr < 100 ? 2000+yr : yr, parseInt(slash[1])-1, parseInt(slash[2]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function fmtDate(v) {
+  const d = parseDate(v);
+  if (!d) return v || '—';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ================================================================
+// NAME RESOLUTION
+// ================================================================
+// Normalize a name string to a comparison key: lowercase, strip punctuation,
+// collapse whitespace, drop generational suffixes ONLY if they'd make us match.
+function _normName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[.,;:'"`()]/g, '')   // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function _stripSuffix(s) {
+  return s.replace(/\s+(jr|sr|ii|iii|iv)$/i, '').trim();
+}
+
+const _aliasIndex = (() => {
+  const idx = {};
+  ROSTER.forEach(r => {
+    idx[_normName(r.canonical)] = r.canonical;
+    (r.aliases || []).forEach(a => { idx[_normName(a)] = r.canonical; });
+  });
+  return idx;
+})();
+const _rosterByCanonical = (() => {
+  const m = {};
+  ROSTER.forEach(r => { m[r.canonical] = r; });
+  return m;
+})();
+
+function resolveAgentName(raw) {
+  if (!raw) return { canonical: 'Unknown', resolved: false };
+  const trimmed = String(raw).trim();
+  if (!trimmed) return { canonical: 'Unknown', resolved: false };
+  const key = _normName(trimmed);
+  if (_aliasIndex[key]) return { canonical: _aliasIndex[key], resolved: true };
+  // Loose match: first + last name agree, allowing middle names.
+  // We check both with and without generational suffixes so "Johnny Longoria"
+  // doesn't accidentally collapse into "Johnny Longoria Sr."
+  const parts = key.split(/\s+/);
+  if (parts.length >= 2) {
+    const first = parts[0], last = parts[parts.length-1];
+    for (const r of ROSTER) {
+      const cParts = _normName(r.canonical).split(/\s+/);
+      const cFirst = cParts[0], cLast = cParts[cParts.length-1];
+      // Exact first+last match (no suffix differences)
+      if (first === cFirst && last === cLast && cParts.length === parts.length) {
+        return { canonical: r.canonical, resolved: true };
+      }
+    }
+    // Second pass: match against suffix-stripped canonical so "Johnny Longoria Sr"
+    // matches even if written without the period. Skip if there's a non-Sr namesake.
+    const inputStripped = _stripSuffix(key);
+    if (_aliasIndex[inputStripped]) return { canonical: _aliasIndex[inputStripped], resolved: true };
+  }
+  return { canonical: trimmed, resolved: false };
+}
+
+// ================================================================
+// MARKET BADGE
+// ================================================================
+function marketClass(m) {
+  if (!m) return 'badge market-other';
+  const l = m.toLowerCase();
+  if (l.includes('austin')) return 'badge market-austin';
+  if (l.includes('san antonio') || l === 'sa') return 'badge market-sa';
+  if (l.includes('houston')) return 'badge market-houston';
+  return 'badge market-other';
+}
+function marketBadge(m) {
+  return `<span class="${marketClass(m)}">${escapeHtml(m||'—')}</span>`;
+}
+
+function statusClass(s) {
+  if(!s) return 'badge s-review';
+  const l = s.toLowerCase();
+  if(l.includes('da sent')) return 'badge s-da';
+  if(l.includes('zillow, cd') || l === 'closed' || l.includes('closed')) return 'badge s-closed';
+  if(l.includes('zillow')) return 'badge s-zillow';
+  if(l.includes('fub')) return 'badge s-fub';
+  if(l.includes('backagent')) return 'badge s-backagent';
+  if(l.includes('need doc')) return 'badge s-docs';
+  if(l.includes('review')) return 'badge s-review';
+  if(l.includes('terminat')) return 'badge s-term';
+  if(l.includes('pending')) return 'badge s-pending';
+  return 'badge s-review';
+}
+
+// ================================================================
+// NORMALIZE
+// ================================================================
+function normalizeRow(row) {
+  const closeRaw = row['close date'] || '';
+  const tabYear = (typeof row._tabYear === 'number') ? row._tabYear : null;
+  const tabMonth = (typeof row._tabMonth === 'number') ? row._tabMonth : null;
+  let closeDate = parseDate(closeRaw);
+  if (!closeDate && tabYear !== null && tabMonth !== null) {
+    closeDate = new Date(tabYear, tabMonth, 1);
+  }
+  const rawAgent = row['agent'] || '';
+  const resolution = resolveAgentName(rawAgent);
+  return {
+    firstName: row['first name'] || '',
+    lastName: row['last name'] || '',
+    email: row['email'] || '',
+    address: row['address'] || '',
+    zip: row['zip code'] || '',
+    executed: row['executed'] || '',
+    optionDate: row['option'] || '',
+    financingDate: row['financing'] || '',
+    closeDate,
+    closeDateRaw: closeRaw || '—',
+    price: parseNum(row['price']),
+    market: (row['market'] || '').trim() || 'Other',
+    rawAgent,
+    agent: resolution.canonical,
+    agentResolved: resolution.resolved,
+    lender: row['lender'] || '',
+    titleCo: row['title'] || '',
+    source: (row['source'] || '').trim(),
+    totalCommission: parseNum(row['total commission']),
+    agencyCommission: parseNum(row['agency commission']),
+    status: (row['status'] || '').trim(),
+    notes: row['notes'] || '',
+    _tab: row._tab || '',
+    _client: [row['first name'], row['last name']].filter(Boolean).join(' ').trim()
+  };
+}
+
+// ================================================================
+// AGGREGATIONS
+// ================================================================
+function groupByAgent(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const name = r.agent || 'Unknown';
+    if (!map[name]) map[name] = { name, deals:0, volume:0, commission:0, statuses:[], markets:new Set(), sources:new Set(), resolved: r.agentResolved };
+    map[name].deals++;
+    map[name].volume += r.price || 0;
+    map[name].commission += r.totalCommission || 0;
+    if (r.status) map[name].statuses.push(r.status);
+    if (r.market) map[name].markets.add(r.market);
+    if (r.source) map[name].sources.add(r.source);
+    if (r.agentResolved) map[name].resolved = true;
+  });
+  return Object.values(map);
+}
+function distinct(arr) { return [...new Set(arr)].filter(Boolean); }
+
+// ================================================================
+// RENDER — YTD
+// ================================================================
+function renderYTD() {
+  const yr = new Date().getFullYear();
+  const ytd = allRows.filter(r => r.closeDate && r.closeDate.getFullYear() === yr);
+  const totalCount = ytd.length;
+  const totalVol = ytd.reduce((s,r)=>s+r.price,0);
+  const totalCommission = ytd.reduce((s,r)=>s+r.totalCommission,0);
+  const closed = ytd.filter(r => /closed/i.test(r.status)).length;
+  const pending = ytd.filter(r => r.status && !/closed|terminat/i.test(r.status)).length;
+  const terminated = ytd.filter(r => /terminat/i.test(r.status)).length;
+  const agentCount = new Set(ytd.map(r=>r.agent)).size;
+
+  // Monthly trend
+  const byMonth = Array.from({length:12}, ()=>({deals:0,volume:0,closed:0}));
+  ytd.forEach(r => {
+    const m = r.closeDate.getMonth();
+    byMonth[m].deals++;
+    byMonth[m].volume += r.price || 0;
+    if (/closed/i.test(r.status)) byMonth[m].closed++;
+  });
+  const maxVol = Math.max(1, ...byMonth.map(m=>m.volume));
+
+  const agents = groupByAgent(ytd).sort((a,b)=>b.volume-a.volume).slice(0,10);
+  const byMarket = {};
+  ytd.forEach(r => {
+    const k = r.market || 'Other';
+    if (!byMarket[k]) byMarket[k] = { deals:0, volume:0 };
+    byMarket[k].deals++;
+    byMarket[k].volume += r.price || 0;
+  });
+
+  document.getElementById('ytd-content').innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Contracts ${yr}</div><div class="metric-value">${totalCount}</div></div>
+      <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closed}</div></div>
+      <div class="metric"><div class="metric-label">Pending</div><div class="metric-value">${pending}</div></div>
+      <div class="metric"><div class="metric-label">Terminated</div><div class="metric-value">${terminated}</div></div>
+      <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
+      <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(totalCommission)}</div></div>
+      <div class="metric"><div class="metric-label">Active agents</div><div class="metric-value">${agentCount}</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">Monthly trend — ${yr}</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Month</th><th class="r">Deals</th><th class="r">Closed</th><th class="r">Volume</th><th>Pace</th></tr></thead>
+          <tbody>${byMonth.map((m,i)=>`<tr>
+            <td>${MONTHS_SHORT[i]}</td>
+            <td class="r">${m.deals||'—'}</td>
+            <td class="r muted">${m.closed||'—'}</td>
+            <td class="r num" style="font-weight:500">${m.volume?fmtM(m.volume):'—'}</td>
+            <td><div class="bar-bg" style="width:120px"><div class="bar-fill" style="width:${m.volume?Math.round(m.volume/maxVol*100):0}%"></div></div></td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Top 10 agents YTD</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th></tr></thead>
+          <tbody>${agents.length ? agents.map((a,i)=>`<tr>
+            <td class="rank-num">${i+1}</td>
+            <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span>${a.resolved?'':'<span class="badge market-other" style="margin-left:6px">unresolved</span>'}</div></td>
+            <td class="r">${a.deals}</td>
+            <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
+          </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No data</td></tr>'}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">By market — ${yr}</div>
+      <table>
+        <thead><tr><th>Market</th><th class="r">Deals</th><th class="r">Volume</th><th class="r">Avg price</th></tr></thead>
+        <tbody>${Object.entries(byMarket).sort((a,b)=>b[1].volume-a[1].volume).map(([m,v])=>`<tr>
+          <td>${marketBadge(m)}</td>
+          <td class="r">${v.deals}</td>
+          <td class="r num" style="font-weight:500">${fmtM(v.volume)}</td>
+          <td class="r muted">${v.deals?fmtFull(Math.round(v.volume/v.deals)):'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ================================================================
+// RENDER — Monthly
+// ================================================================
+function buildMonthTabs() {
+  const yr = new Date().getFullYear();
+  const months = [];
+  for (let m=0; m<12; m++) months.push({year:yr, month:m, key:`${yr}-${m}`, label:MONTHS_SHORT[m], full:MONTHS[m]+' '+yr});
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${now.getMonth()}`;
+  if (!activeMonth) activeMonth = currentKey;
+  document.getElementById('month-tabs').innerHTML = months.map(m=>`
+    <button class="month-tab${m.key===activeMonth?' active':''}" data-mkey="${m.key}" onclick="switchMonth(this)">
+      ${m.label}${m.key===currentKey?'<span class="current-dot"></span>':''}
+    </button>`).join('');
+  renderMonth();
+}
+function switchMonth(btn) {
+  document.querySelectorAll('.month-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  activeMonth = btn.dataset.mkey;
+  renderMonth();
+}
+function renderMonth() {
+  if (!activeMonth) { document.getElementById('month-content').innerHTML = '<div class="empty-state">No data</div>'; return; }
+  const [yr, mo] = activeMonth.split('-').map(Number);
+  const monthRows = allRows.filter(r => r.closeDate && r.closeDate.getFullYear()===yr && r.closeDate.getMonth()===mo);
+  const mktF = document.getElementById('m-mkt')?.value || 'all';
+  const statF = document.getElementById('m-status')?.value || 'all';
+  const searchQ = (document.getElementById('m-search')?.value || '').toLowerCase();
+
+  const filtered = monthRows.filter(r => {
+    if (mktF !== 'all' && r.market !== mktF) return false;
+    if (statF !== 'all' && r.status !== statF) return false;
+    if (searchQ && !r.agent.toLowerCase().includes(searchQ) && !r.address.toLowerCase().includes(searchQ) && !r._client.toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+
+  const tv = filtered.reduce((s,r)=>s+r.price,0);
+  const tc = filtered.reduce((s,r)=>s+r.totalCommission,0);
+  const closedCount = filtered.filter(r=>/closed/i.test(r.status)).length;
+  const agentList = groupByAgent(filtered).sort((a,b)=>b.deals-a.deals);
+  const topAgent = agentList[0];
+
+  const markets = distinct(allRows.map(r=>r.market));
+  const statuses = distinct(allRows.map(r=>r.status));
+
+  document.getElementById('month-content').innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Contracts</div><div class="metric-value">${filtered.length}</div></div>
+      <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closedCount}</div></div>
+      <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
+      <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
+      ${topAgent?`<div class="metric"><div class="metric-label">Top agent</div><div class="metric-value sm">${escapeHtml(topAgent.name)}</div></div>`:''}
+    </div>
+
+    <div class="filter-row">
+      <select id="m-mkt" onchange="renderMonth()">
+        <option value="all"${mktF==='all'?' selected':''}>All markets</option>
+        ${markets.map(m=>`<option value="${escapeHtml(m)}"${mktF===m?' selected':''}>${escapeHtml(m)}</option>`).join('')}
+      </select>
+      <select id="m-status" onchange="renderMonth()">
+        <option value="all"${statF==='all'?' selected':''}>All statuses</option>
+        ${statuses.map(s=>`<option value="${escapeHtml(s)}"${statF===s?' selected':''}>${escapeHtml(s)}</option>`).join('')}
+      </select>
+      <input type="text" id="m-search" placeholder="Search agent, client, or address..." value="${escapeHtml(searchQ)}" oninput="renderMonth()">
+    </div>
+
+    <div class="card">
+      <div class="card-header">${MONTHS[mo]} ${yr} — all contracts</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="min-width:130px">Client</th>
+          <th style="min-width:160px">Address</th>
+          <th style="min-width:130px">Agent</th>
+          <th>Market</th>
+          <th class="r">Price</th>
+          <th class="r">Commission</th>
+          <th>Close date</th>
+          <th>Status</th>
+          <th>Source</th>
+        </tr></thead>
+        <tbody>${filtered.length ? filtered.map(r=>`<tr>
+          <td title="${escapeHtml(r._client)}">${escapeHtml(r._client||'—')}</td>
+          <td title="${escapeHtml(r.address)}">${escapeHtml(r.address||'—')}</td>
+          <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(r.agent||'?')}">${initials(r.agent||'?')}</div><span>${escapeHtml(r.agent||'—')}</span>${r.agentResolved?'':'<span class="badge market-other" title="Not on roster" style="margin-left:6px">?</span>'}</div></td>
+          <td>${marketBadge(r.market)}</td>
+          <td class="r num" style="font-weight:500">${r.price>0?fmtFull(r.price):'—'}</td>
+          <td class="r num muted">${r.totalCommission>0?fmtFull(r.totalCommission):'—'}</td>
+          <td class="muted">${escapeHtml(fmtDate(r.closeDateRaw))}</td>
+          <td><span class="${statusClass(r.status)}">${escapeHtml(r.status||'—')}</span></td>
+          <td class="muted">${escapeHtml(r.source||'—')}</td>
+        </tr>`).join('') : `<tr><td colspan="9" class="empty-state">No contracts with a close date in ${MONTHS[mo]} ${yr}</td></tr>`}</tbody>
+      </table></div>
+    </div>
+
+    ${agentList.length ? `<div class="card">
+      <div class="card-header">Agent breakdown — ${MONTHS[mo]}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th><th class="r">Avg price</th><th class="r">Commission</th></tr></thead>
+        <tbody>${agentList.map((a,i)=>`<tr>
+          <td class="rank-num">${i+1}</td>
+          <td><div class="agent-cell"><div class="avatar" style="${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span></div></td>
+          <td class="r">${a.deals}</td>
+          <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
+          <td class="r muted">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
+          <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>` : ''}
+  `;
+}
+
+// ================================================================
+// RENDER — Agents
+// ================================================================
+function populateFilters() {
+  const markets = distinct(allRows.map(r=>r.market));
+  const statuses = distinct(allRows.map(r=>r.status));
+  const mkt = document.getElementById('mkt-filter');
+  if (mkt && mkt.options.length === 1) {
+    markets.forEach(m => { const o = document.createElement('option'); o.value=m; o.textContent=m; mkt.appendChild(o); });
+  }
+  const st = document.getElementById('status-filter');
+  if (st && st.options.length === 1) {
+    statuses.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; st.appendChild(o); });
+  }
+}
+function renderAgents() {
+  const mkt = document.getElementById('mkt-filter').value;
+  const sort = document.getElementById('sort-filter').value;
+  const sf = document.getElementById('status-filter').value;
+  const search = (document.getElementById('agent-search').value || '').toLowerCase();
+  let rows = allRows.filter(r => (mkt==='all'||r.market===mkt) && (sf==='all'||r.status===sf));
+  let agents = groupByAgent(rows);
+  if (search) agents = agents.filter(a => a.name.toLowerCase().includes(search));
+  if (sort==='volume') agents.sort((a,b)=>b.volume-a.volume);
+  else if (sort==='deals') agents.sort((a,b)=>b.deals-a.deals);
+  else if (sort==='commission') agents.sort((a,b)=>b.commission-a.commission);
+  else agents.sort((a,b)=>a.name.localeCompare(b.name));
+  const tv = agents.reduce((s,a)=>s+a.volume,0);
+  const tc = agents.reduce((s,a)=>s+a.commission,0);
+  document.getElementById('agent-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Agents</div><div class="metric-value">${agents.length}</div></div>
+    <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
+    <div class="metric"><div class="metric-label">Total volume</div><div class="metric-value">${fmtM(tv)}</div></div>
+    <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(tc)}</div></div>
+  `;
+  const maxV = agents.length ? Math.max(...agents.map(a=>a.volume)) : 1;
+  document.getElementById('agent-tbody').innerHTML = agents.length ? agents.map((a,i)=>{
+    const pct = maxV>0 ? Math.round(a.volume/maxV*100) : 0;
+    return `<tr>
+      <td class="rank-num">${i+1}</td>
+      <td><div class="agent-cell"><div class="avatar" style="${avatarStyle(a.name)}">${initials(a.name)}</div>
+        <div><div style="font-weight:500">${escapeHtml(a.name)}${a.resolved?'':' <span class="badge market-other" style="font-size:9px">unresolved</span>'}</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></div></div></td>
+      <td class="r">${a.deals}</td>
+      <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
+      <td class="r muted num">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
+      <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
+      <td>${[...a.markets].map(m=>marketBadge(m)).join(' ')}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty-state">No records match filters</td></tr>';
+}
+
+// ================================================================
+// RENDER — Team
+// ================================================================
+function renderTeam() {
+  const rows = allRows;
+  const tv = rows.reduce((s,r)=>s+r.price,0);
+  const tc = rows.reduce((s,r)=>s+r.totalCommission,0);
+  const agentCount = new Set(rows.map(r=>r.agent)).size;
+  const closed = rows.filter(r=>/closed/i.test(r.status)).length;
+  document.getElementById('team-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Total agents</div><div class="metric-value">${agentCount}</div></div>
+    <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
+    <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closed}</div></div>
+    <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
+    <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
+  `;
+
+  // Markets
+  const mm = {};
+  rows.forEach(r => { const k=r.market||'Other'; if(!mm[k]) mm[k]={deals:0,vol:0}; mm[k].deals++; mm[k].vol+=r.price||0; });
+  document.getElementById('market-tbody').innerHTML = Object.entries(mm).sort((a,b)=>b[1].vol-a[1].vol).map(([k,v])=>`
+    <tr><td>${marketBadge(k)}</td><td class="r">${v.deals}</td><td class="r">${fmtM(v.vol)}</td></tr>`).join('') +
+    `<tr style="border-top:1px solid var(--cream-border)"><td style="font-weight:500">Total</td><td class="r" style="font-weight:500">${rows.length}</td><td class="r" style="font-weight:500">${fmtM(tv)}</td></tr>`;
+
+  // Sources
+  const sm = {};
+  rows.forEach(r => { const k=r.source||'Unknown'; if(!sm[k]) sm[k]={deals:0,vol:0}; sm[k].deals++; sm[k].vol+=r.price||0; });
+  document.getElementById('source-tbody').innerHTML = Object.entries(sm).sort((a,b)=>b[1].deals-a[1].deals).map(([k,v])=>`
+    <tr><td>${escapeHtml(k)}</td><td class="r">${v.deals}</td><td class="r">${fmtM(v.vol)}</td></tr>`).join('');
+
+  // Statuses
+  const ss = {};
+  rows.forEach(r => { const k=r.status||'Unknown'; if(!ss[k]) ss[k]=0; ss[k]++; });
+  document.getElementById('teamstatus-tbody').innerHTML = Object.entries(ss).sort((a,b)=>b[1]-a[1]).map(([s,c])=>`
+    <tr><td><span class="${statusClass(s)}">${escapeHtml(s)}</span></td><td class="r">${c}</td><td class="r muted">${rows.length?Math.round(c/rows.length*100):0}%</td></tr>`).join('');
+
+  // Leaderboard
+  const al = groupByAgent(rows).sort((a,b)=>b.volume-a.volume);
+  document.getElementById('team-tbody').innerHTML = al.map((a,i) => {
+    const counts = {};
+    a.statuses.forEach(s => counts[s] = (counts[s]||0)+1);
+    const top = Object.entries(counts).sort((x,y)=>y[1]-x[1])[0]?.[0] || '';
+    return `<tr>
+      <td class="rank-num">${i+1}</td>
+      <td><div class="agent-cell"><div class="avatar" style="${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span>${a.resolved?'':' <span class="badge market-other" style="font-size:9px">unresolved</span>'}</div></td>
+      <td class="r">${a.deals}</td>
+      <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
+      <td class="r muted num">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
+      <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
+      <td>${top?`<span class="${statusClass(top)}">${escapeHtml(top)}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ================================================================
+// RENDER — Roster (name reconciliation)
+// ================================================================
+function renderRoster() {
+  // Group by raw agent name as it appears in the sheet
+  const map = {};
+  allRows.forEach(r => {
+    const raw = r.rawAgent || '(blank)';
+    if (!map[raw]) map[raw] = { raw, canonical: r.agent, resolved: r.agentResolved, deals:0, volume:0 };
+    map[raw].deals++;
+    map[raw].volume += r.price || 0;
+  });
+  const list = Object.values(map).sort((a,b) => (a.resolved===b.resolved ? b.deals-a.deals : (a.resolved?1:-1)));
+  const unresolvedCount = list.filter(x=>!x.resolved && x.raw !== '(blank)').length;
+  document.getElementById('roster-tbody').innerHTML = list.map(x => `
+    <tr>
+      <td><span style="font-family:monospace;font-size:11px">${escapeHtml(x.raw)}</span></td>
+      <td>${x.resolved?`<span style="font-weight:500">${escapeHtml(x.canonical)}</span>`:`<span class="muted">${escapeHtml(x.canonical)}</span>`}</td>
+      <td class="r">${x.deals}</td>
+      <td class="r num">${fmtM(x.volume)}</td>
+      <td>${x.resolved?'<span class="badge s-closed">resolved</span>':'<span class="badge s-term">add to roster</span>'}</td>
+    </tr>`).join('');
+  // Surface a warning banner if unresolved names exist
+  const wb = document.getElementById('warn-box');
+  if (unresolvedCount > 0 && ROSTER.length > 0) {
+    wb.innerHTML = `<div class="warn-banner"><b>${unresolvedCount}</b> agent name${unresolvedCount===1?'':'s'} in the sheet didn't match the roster. Open the <b>Roster</b> tab to see which.</div>`;
+  } else if (ROSTER.length === 0) {
+    wb.innerHTML = `<div class="warn-banner"><b>Roster not configured.</b> Edit <code>ROSTER</code> at the top of <code>index.html</code> to enable name reconciliation.</div>`;
+  } else {
+    wb.innerHTML = '';
+  }
+}
+
+// ================================================================
+// NAV
+// ================================================================
+function switchMain(btn) {
+  document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-'+btn.dataset.pane).classList.add('active');
+}
+
+// ================================================================
+// FETCH
+// ================================================================
+function fetchJSONP() {
+  return new Promise(resolve => {
+    if (!ENDPOINT || ENDPOINT.startsWith('REPLACE')) {
+      resolve({ rows: [], error: 'Endpoint not configured. Edit the ENDPOINT constant at the top of index.html.' });
+      return;
+    }
+    const cbName = 'cb_ascend_' + Date.now();
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve({ rows: [], error: 'Request timed out (45s)' });
+    }, 45000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (data && data.error) { resolve({ rows: [], error: data.error }); return; }
+      resolve({ rows: (data && data.rows) || [], tabs: data?.tabs || [], generatedAt: data?.generatedAt });
+    };
+    script.src = `${ENDPOINT}?token=${encodeURIComponent(TOKEN)}&callback=${cbName}`;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      resolve({ rows: [], error: 'Apps Script load failed — verify deployment is "Anyone" access.' });
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function loadData() {
+  document.getElementById('status-text').textContent = 'Loading...';
+  document.getElementById('error-box').innerHTML = '';
+  const result = await fetchJSONP();
+  if (result.error) {
+    document.getElementById('status-text').textContent = 'Error';
+    document.getElementById('error-box').innerHTML = `<div class="error-banner">⚠ ${escapeHtml(result.error)}</div>`;
+    allRows = [];
+  } else {
+    allRows = result.rows.map(normalizeRow).filter(r => r.agent && r.address);
+    lastLoadedAt = new Date();
+    document.getElementById('status-text').textContent = `${allRows.length} deals · ${lastLoadedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  }
+  populateFilters();
+  renderYTD();
+  buildMonthTabs();
+  renderAgents();
+  renderTeam();
+  renderRoster();
+}
+
+loadData();
+</script>
+</body>
+</html>
