@@ -157,7 +157,6 @@ input[type=text] { min-width: 220px; }
       <select id="sort-filter" onchange="renderAgents()">
         <option value="volume">Sort: volume</option>
         <option value="deals">Sort: deals</option>
-        <option value="commission">Sort: commission</option>
         <option value="name">Sort: name</option>
       </select>
       <select id="status-filter" onchange="renderAgents()">
@@ -172,10 +171,9 @@ input[type=text] { min-width: 220px; }
         <th class="r">Deals</th>
         <th class="r">Volume</th>
         <th class="r">Avg price</th>
-        <th class="r">Commission</th>
         <th>Markets</th>
       </tr></thead>
-      <tbody id="agent-tbody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+      <tbody id="agent-tbody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
     </table></div></div>
   </div>
 
@@ -208,7 +206,6 @@ input[type=text] { min-width: 220px; }
           <th class="r">Deals</th>
           <th class="r">Volume</th>
           <th class="r">Avg price</th>
-          <th class="r">Commission</th>
           <th>Top status</th>
         </tr></thead>
         <tbody id="team-tbody"></tbody>
@@ -675,7 +672,7 @@ function renderYTD() {
   const ytd = allRows.filter(r => r.closeDate && r.closeDate.getFullYear() === yr);
   const totalCount = ytd.length;
   const totalVol = ytd.reduce((s,r)=>s+r.price,0);
-  const totalCommission = ytd.reduce((s,r)=>s+r.totalCommission,0);
+  // commission intentionally not surfaced on the dashboard (sensitive)
   const closed = ytd.filter(r => /closed/i.test(r.status)).length;
   const pending = ytd.filter(r => r.status && !/closed|terminat/i.test(r.status)).length;
   const terminated = ytd.filter(r => /terminat/i.test(r.status)).length;
@@ -722,7 +719,6 @@ function renderYTD() {
       <div class="metric"><div class="metric-label">Pending</div><div class="metric-value">${pending}</div></div>
       <div class="metric"><div class="metric-label">Terminated</div><div class="metric-value">${terminated}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
-      <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(totalCommission)}</div></div>
       <div class="metric"><div class="metric-label">Active agents</div><div class="metric-value">${agentCount}</div></div>
       ${tiedTopCard('Top YTD — deals',  topByDealsYTD,  'deals')}
       ${overlap(topByDealsYTD, topByVolumeYTD) ? '' : tiedTopCard('Top YTD — volume', topByVolumeYTD, 'volume')}
@@ -806,7 +802,6 @@ function renderMonth() {
   });
 
   const tv = filtered.reduce((s,r)=>s+r.price,0);
-  const tc = filtered.reduce((s,r)=>s+r.totalCommission,0);
   const closedCount = filtered.filter(r=>/closed/i.test(r.status)).length;
   const agentList = groupByAgent(filtered);
   const topByDeals = topAgentsTied(agentList, 'deals');
@@ -820,7 +815,6 @@ function renderMonth() {
       <div class="metric"><div class="metric-label">Contracts</div><div class="metric-value">${filtered.length}</div></div>
       <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closedCount}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
-      <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
       ${tiedTopCard('Top — deals',  topByDeals,  'deals')}
       ${overlap(topByDeals, topByVolume) ? '' : tiedTopCard('Top — volume', topByVolume, 'volume')}
     </div>
@@ -846,7 +840,6 @@ function renderMonth() {
           <th style="min-width:130px">Agent</th>
           <th>Market</th>
           <th class="r">Price</th>
-          <th class="r">Commission</th>
           <th>Close date</th>
           <th>Status</th>
           <th>Source</th>
@@ -857,25 +850,23 @@ function renderMonth() {
           <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(r.agent||'?')}">${initials(r.agent||'?')}</div><span>${escapeHtml(r.agent||'—')}</span>${r.agentResolved?'':'<span class="badge market-other" title="Not on roster" style="margin-left:6px">?</span>'}</div></td>
           <td>${marketBadge(r.market)}</td>
           <td class="r num" style="font-weight:500">${r.price>0?fmtFull(r.price):'—'}</td>
-          <td class="r num muted">${r.totalCommission>0?fmtFull(r.totalCommission):'—'}</td>
           <td class="muted">${escapeHtml(fmtDate(r.closeDateRaw))}</td>
           <td><span class="${statusClass(r.status)}">${escapeHtml(r.status||'—')}</span></td>
           <td class="muted">${escapeHtml(r.source||'—')}</td>
-        </tr>`).join('') : `<tr><td colspan="9" class="empty-state">No contracts with a close date in ${MONTHS[mo]} ${yr}</td></tr>`}</tbody>
+        </tr>`).join('') : `<tr><td colspan="8" class="empty-state">No contracts with a close date in ${MONTHS[mo]} ${yr}</td></tr>`}</tbody>
       </table></div>
     </div>
 
     ${agentList.length ? `<div class="card">
       <div class="card-header">Agent breakdown — ${MONTHS[mo]}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th><th class="r">Avg price</th><th class="r">Commission</th></tr></thead>
+        <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th><th class="r">Avg price</th></tr></thead>
         <tbody>${agentList.map((a,i)=>`<tr>
           <td class="rank-num">${i+1}</td>
           <td><div class="agent-cell"><div class="avatar" style="${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span></div></td>
           <td class="r">${a.deals}</td>
           <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
           <td class="r muted">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
-          <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>` : ''}
@@ -907,15 +898,12 @@ function renderAgents() {
   if (search) agents = agents.filter(a => a.name.toLowerCase().includes(search));
   if (sort==='volume') agents.sort((a,b)=>b.volume-a.volume);
   else if (sort==='deals') agents.sort((a,b)=>b.deals-a.deals);
-  else if (sort==='commission') agents.sort((a,b)=>b.commission-a.commission);
   else agents.sort((a,b)=>a.name.localeCompare(b.name));
   const tv = agents.reduce((s,a)=>s+a.volume,0);
-  const tc = agents.reduce((s,a)=>s+a.commission,0);
   document.getElementById('agent-metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Agents</div><div class="metric-value">${agents.length}</div></div>
     <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
     <div class="metric"><div class="metric-label">Total volume</div><div class="metric-value">${fmtM(tv)}</div></div>
-    <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(tc)}</div></div>
   `;
   const maxV = agents.length ? Math.max(...agents.map(a=>a.volume)) : 1;
   document.getElementById('agent-tbody').innerHTML = agents.length ? agents.map((a,i)=>{
@@ -928,10 +916,9 @@ function renderAgents() {
       <td class="r">${a.deals}</td>
       <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
       <td class="r muted num">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
-      <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
       <td>${[...a.markets].map(m=>marketBadge(m)).join(' ')}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" class="empty-state">No records match filters</td></tr>';
+  }).join('') : '<tr><td colspan="6" class="empty-state">No records match filters</td></tr>';
 }
 
 // ================================================================
@@ -940,7 +927,6 @@ function renderAgents() {
 function renderTeam() {
   const rows = allRows;
   const tv = rows.reduce((s,r)=>s+r.price,0);
-  const tc = rows.reduce((s,r)=>s+r.totalCommission,0);
   const agentCount = new Set(rows.map(r=>r.agent)).size;
   const closed = rows.filter(r=>/closed/i.test(r.status)).length;
   document.getElementById('team-metrics').innerHTML = `
@@ -948,7 +934,6 @@ function renderTeam() {
     <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
     <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closed}</div></div>
     <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
-    <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
   `;
 
   // Markets
@@ -982,7 +967,6 @@ function renderTeam() {
       <td class="r">${a.deals}</td>
       <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
       <td class="r muted num">${a.deals?fmtFull(Math.round(a.volume/a.deals)):'—'}</td>
-      <td class="r num">${a.commission>0?fmtFull(a.commission):'—'}</td>
       <td>${top?`<span class="${statusClass(top)}">${escapeHtml(top)}</span>`:'—'}</td>
     </tr>`;
   }).join('');
