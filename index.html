@@ -639,7 +639,11 @@ function renderYTD() {
   });
   const maxVol = Math.max(1, ...byMonth.map(m=>m.volume));
 
-  const agents = groupByAgent(ytd).sort((a,b)=>b.volume-a.volume).slice(0,10);
+  const allYtdAgents = groupByAgent(ytd);
+  const agentsByVolume = [...allYtdAgents].sort((a,b)=>b.volume-a.volume).slice(0,10);
+  const agentsByDeals = [...allYtdAgents].sort((a,b)=> (b.deals-a.deals) || (b.volume-a.volume)).slice(0,10);
+  const topAgentByDeals = agentsByDeals[0];
+  const topAgentByVolume = agentsByVolume[0];
   const byMarket = {};
   ytd.forEach(r => {
     const k = r.market || 'Other';
@@ -647,6 +651,26 @@ function renderYTD() {
     byMarket[k].deals++;
     byMarket[k].volume += r.price || 0;
   });
+
+  const topCard = (label, a) => a ? `
+    <div class="metric">
+      <div class="metric-label">${label}</div>
+      <div class="metric-value sm" style="font-size:16px">${escapeHtml(a.name)}</div>
+      <div style="font-size:10px;color:var(--gray);margin-top:4px;text-transform:uppercase;letter-spacing:.04em">
+        ${a.deals} ${a.deals===1?'deal':'deals'} · ${fmtM(a.volume)}
+      </div>
+    </div>` : '';
+
+  const agentLeaderboardHTML = (rows, sortLabel) => `
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th></tr></thead>
+      <tbody>${rows.length ? rows.map((a,i)=>`<tr>
+        <td class="rank-num">${i+1}</td>
+        <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span>${a.resolved?'':'<span class="badge market-other" style="margin-left:6px">unresolved</span>'}</div></td>
+        <td class="r"${sortLabel==='deals'?' style="font-weight:500"':''}>${a.deals}</td>
+        <td class="r num"${sortLabel==='volume'?' style="font-weight:500"':' style="color:var(--gray)"'}>${fmtM(a.volume)}</td>
+      </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No data</td></tr>'}</tbody>
+    </table></div>`;
 
   document.getElementById('ytd-content').innerHTML = `
     <div class="metrics">
@@ -657,34 +681,32 @@ function renderYTD() {
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
       <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(totalCommission)}</div></div>
       <div class="metric"><div class="metric-label">Active agents</div><div class="metric-value">${agentCount}</div></div>
+      ${topCard('Top YTD — deals', topAgentByDeals)}
+      ${topAgentByVolume && topAgentByVolume.name !== topAgentByDeals?.name ? topCard('Top YTD — volume', topAgentByVolume) : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-header">Monthly trend — ${yr}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Month</th><th class="r">Deals</th><th class="r">Closed</th><th class="r">Volume</th><th>Pace</th></tr></thead>
+        <tbody>${byMonth.map((m,i)=>`<tr>
+          <td>${MONTHS_SHORT[i]}</td>
+          <td class="r">${m.deals||'—'}</td>
+          <td class="r muted">${m.closed||'—'}</td>
+          <td class="r num" style="font-weight:500">${m.volume?fmtM(m.volume):'—'}</td>
+          <td><div class="bar-bg" style="width:120px"><div class="bar-fill" style="width:${m.volume?Math.round(m.volume/maxVol*100):0}%"></div></div></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
     </div>
 
     <div class="two-col">
       <div class="card">
-        <div class="card-header">Monthly trend — ${yr}</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Month</th><th class="r">Deals</th><th class="r">Closed</th><th class="r">Volume</th><th>Pace</th></tr></thead>
-          <tbody>${byMonth.map((m,i)=>`<tr>
-            <td>${MONTHS_SHORT[i]}</td>
-            <td class="r">${m.deals||'—'}</td>
-            <td class="r muted">${m.closed||'—'}</td>
-            <td class="r num" style="font-weight:500">${m.volume?fmtM(m.volume):'—'}</td>
-            <td><div class="bar-bg" style="width:120px"><div class="bar-fill" style="width:${m.volume?Math.round(m.volume/maxVol*100):0}%"></div></div></td>
-          </tr>`).join('')}</tbody>
-        </table></div>
+        <div class="card-header">Top 10 by deals — YTD</div>
+        ${agentLeaderboardHTML(agentsByDeals, 'deals')}
       </div>
-
       <div class="card">
-        <div class="card-header">Top 10 agents YTD</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th style="width:22px">#</th><th>Agent</th><th class="r">Deals</th><th class="r">Volume</th></tr></thead>
-          <tbody>${agents.length ? agents.map((a,i)=>`<tr>
-            <td class="rank-num">${i+1}</td>
-            <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(a.name)}">${initials(a.name)}</div><span style="font-weight:500">${escapeHtml(a.name)}</span>${a.resolved?'':'<span class="badge market-other" style="margin-left:6px">unresolved</span>'}</div></td>
-            <td class="r">${a.deals}</td>
-            <td class="r num" style="font-weight:500">${fmtM(a.volume)}</td>
-          </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No data</td></tr>'}</tbody>
-        </table></div>
+        <div class="card-header">Top 10 by volume — YTD</div>
+        ${agentLeaderboardHTML(agentsByVolume, 'volume')}
       </div>
     </div>
 
@@ -743,11 +765,24 @@ function renderMonth() {
   const tv = filtered.reduce((s,r)=>s+r.price,0);
   const tc = filtered.reduce((s,r)=>s+r.totalCommission,0);
   const closedCount = filtered.filter(r=>/closed/i.test(r.status)).length;
-  const agentList = groupByAgent(filtered).sort((a,b)=>b.deals-a.deals);
-  const topAgent = agentList[0];
+  // Two leaderboards for the month: by deals (ties broken by volume), by volume.
+  const agentList = groupByAgent(filtered).sort((a,b)=> (b.deals-a.deals) || (b.volume-a.volume));
+  const agentByVolume = [...agentList].sort((a,b)=> b.volume-a.volume);
+  const topByDeals = agentList[0];
+  const topByVolume = agentByVolume[0];
 
   const markets = distinct(allRows.map(r=>r.market));
   const statuses = distinct(allRows.map(r=>r.status));
+
+  // Helper: render a "top agent" card with name, deals, and volume on one card.
+  const topCard = (label, a) => a ? `
+    <div class="metric">
+      <div class="metric-label">${label}</div>
+      <div class="metric-value sm" style="font-size:16px">${escapeHtml(a.name)}</div>
+      <div style="font-size:10px;color:var(--gray);margin-top:4px;text-transform:uppercase;letter-spacing:.04em">
+        ${a.deals} ${a.deals===1?'deal':'deals'} · ${fmtM(a.volume)}
+      </div>
+    </div>` : '';
 
   document.getElementById('month-content').innerHTML = `
     <div class="metrics">
@@ -755,7 +790,8 @@ function renderMonth() {
       <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closedCount}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
       <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
-      ${topAgent?`<div class="metric"><div class="metric-label">Top agent</div><div class="metric-value sm">${escapeHtml(topAgent.name)}</div></div>`:''}
+      ${topCard('Top — deals', topByDeals)}
+      ${topByVolume && topByVolume.name !== (topByDeals?.name) ? topCard('Top — volume', topByVolume) : ''}
     </div>
 
     <div class="filter-row">
