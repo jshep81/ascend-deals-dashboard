@@ -238,29 +238,16 @@ input[type=text] { min-width: 220px; }
 
 <script>
 // ================================================================
-// CONFIG — three data sources:
-//   1. TASA Contracts 2026 — Jan-Apr San Antonio data
-//   2. Austin Contracts 2026 — Jan-Apr Austin data
-//   3. Consolidated 2026 — May onward, both markets, driven by Market column
+// CONFIG — single source of truth
+// All 2026 deals (Jan-Dec) live in the Ascend Contracts 2026 sheet.
+// Market is driven by each row's Market column.
 // ================================================================
 const ENDPOINTS = [
   {
-    label: 'TASA (Jan-Apr)',
-    url: 'https://script.google.com/macros/s/AKfycbwi54qQJobGc60h7XxruJrsBhb9qn00OAO2IUMnCiq2RqVIezQ0KKmmB4YTUrpq0HV8/exec',
-    token: 'ascend-tasa-2026',
-    defaultMarket: 'San Antonio'
-  },
-  {
-    label: 'Austin (Jan-Apr)',
-    url: 'https://script.google.com/macros/s/AKfycbyO0W5M0gi2VIP72HLZ9OWIBH_v8oa9old7kxyHE-W6VssBmcZPmRLRn4Q3U7l5lYc/exec',
-    token: 'ascend-austin-2026',
-    defaultMarket: 'Austin'
-  },
-  {
-    label: 'Consolidated (May+)',
+    label: 'Ascend Contracts 2026',
     url: 'https://script.google.com/macros/s/AKfycbyeqmqpUJA5qAENMtAmW8NkoRmZ7s24XUZ-qHT38UkuClmVjlPfEqej69iFuI1y8_D4/exec',
     token: 'ascend-2026',
-    defaultMarket: null   // use the row's Market column, no fallback
+    defaultMarket: null
   }
 ];
 
