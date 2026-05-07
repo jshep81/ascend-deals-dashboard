@@ -598,6 +598,58 @@ function normalizeRow(row) {
 // ================================================================
 // AGGREGATIONS
 // ================================================================
+/**
+ * Return all agents tied at the top for `metric` ('deals' or 'volume').
+ * For 'deals' ties, the secondary sort is volume desc so the order within the
+ * tied group is meaningful. For 'volume' ties (rare since volume is summed
+ * dollars), the secondary sort is deals desc.
+ */
+function topAgentsTied(agents, metric) {
+  if (!agents || agents.length === 0) return [];
+  const primary = metric;
+  const secondary = metric === 'deals' ? 'volume' : 'deals';
+  const sorted = [...agents].sort((a,b) => (b[primary]-a[primary]) || (b[secondary]-a[secondary]));
+  const topVal = sorted[0][primary];
+  if (topVal === 0) return [];
+  return sorted.filter(a => a[primary] === topVal);
+}
+
+/** True if both lists have exactly the same set of agent names. */
+function overlap(a, b) {
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  const aset = new Set(a.map(x => x.name));
+  return b.every(x => aset.has(x.name));
+}
+
+/**
+ * Render a single metric card listing every agent tied at the top of `metric`.
+ * The big number is the metric value (deals count or volume). Below it,
+ * a stacked list of every tied agent + their secondary stat.
+ */
+function tiedTopCard(label, tied, metric) {
+  if (!tied || tied.length === 0) return '';
+  const first = tied[0];
+  const bigValue = metric === 'deals' ? first.deals : fmtM(first.volume);
+  const secondaryFn = metric === 'deals'
+    ? a => fmtM(a.volume)
+    : a => `${a.deals} ${a.deals===1?'deal':'deals'}`;
+  const tieFlag = tied.length > 1 ? `<span style="font-size:10px;color:var(--gray-light);margin-left:6px">×${tied.length} tied</span>` : '';
+  const list = tied.map(a => `
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.45;margin-top:2px">
+      <span style="font-weight:500;color:var(--black-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}</span>
+      <span style="color:var(--gray);font-variant-numeric:tabular-nums">${secondaryFn(a)}</span>
+    </div>`).join('');
+  // Make the card span more horizontal space if multiple are tied
+  const span = tied.length > 1 ? ' style="grid-column:span 2"' : '';
+  return `
+    <div class="metric"${span}>
+      <div class="metric-label">${label}${tieFlag}</div>
+      <div class="metric-value" style="font-size:22px">${bigValue}${metric==='deals'?` <span style="font-size:11px;color:var(--gray-light);font-family:var(--font-body);font-weight:400">${first.deals===1?'deal':'deals'}</span>`:''}</div>
+      <div style="margin-top:6px;border-top:1px solid var(--cream-border);padding-top:6px">${list}</div>
+    </div>`;
+}
+
 function groupByAgent(rows) {
   const map = {};
   rows.forEach(r => {
@@ -642,8 +694,8 @@ function renderYTD() {
   const allYtdAgents = groupByAgent(ytd);
   const agentsByVolume = [...allYtdAgents].sort((a,b)=>b.volume-a.volume).slice(0,10);
   const agentsByDeals = [...allYtdAgents].sort((a,b)=> (b.deals-a.deals) || (b.volume-a.volume)).slice(0,10);
-  const topAgentByDeals = agentsByDeals[0];
-  const topAgentByVolume = agentsByVolume[0];
+  const topByDealsYTD = topAgentsTied(allYtdAgents, 'deals');
+  const topByVolumeYTD = topAgentsTied(allYtdAgents, 'volume');
   const byMarket = {};
   ytd.forEach(r => {
     const k = r.market || 'Other';
@@ -651,15 +703,6 @@ function renderYTD() {
     byMarket[k].deals++;
     byMarket[k].volume += r.price || 0;
   });
-
-  const topCard = (label, a) => a ? `
-    <div class="metric">
-      <div class="metric-label">${label}</div>
-      <div class="metric-value sm" style="font-size:16px">${escapeHtml(a.name)}</div>
-      <div style="font-size:10px;color:var(--gray);margin-top:4px;text-transform:uppercase;letter-spacing:.04em">
-        ${a.deals} ${a.deals===1?'deal':'deals'} · ${fmtM(a.volume)}
-      </div>
-    </div>` : '';
 
   const agentLeaderboardHTML = (rows, sortLabel) => `
     <div class="tbl-wrap"><table>
@@ -681,8 +724,8 @@ function renderYTD() {
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
       <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value">${fmtM(totalCommission)}</div></div>
       <div class="metric"><div class="metric-label">Active agents</div><div class="metric-value">${agentCount}</div></div>
-      ${topCard('Top YTD — deals', topAgentByDeals)}
-      ${topAgentByVolume && topAgentByVolume.name !== topAgentByDeals?.name ? topCard('Top YTD — volume', topAgentByVolume) : ''}
+      ${tiedTopCard('Top YTD — deals',  topByDealsYTD,  'deals')}
+      ${overlap(topByDealsYTD, topByVolumeYTD) ? '' : tiedTopCard('Top YTD — volume', topByVolumeYTD, 'volume')}
     </div>
 
     <div class="card">
@@ -765,24 +808,12 @@ function renderMonth() {
   const tv = filtered.reduce((s,r)=>s+r.price,0);
   const tc = filtered.reduce((s,r)=>s+r.totalCommission,0);
   const closedCount = filtered.filter(r=>/closed/i.test(r.status)).length;
-  // Two leaderboards for the month: by deals (ties broken by volume), by volume.
-  const agentList = groupByAgent(filtered).sort((a,b)=> (b.deals-a.deals) || (b.volume-a.volume));
-  const agentByVolume = [...agentList].sort((a,b)=> b.volume-a.volume);
-  const topByDeals = agentList[0];
-  const topByVolume = agentByVolume[0];
+  const agentList = groupByAgent(filtered);
+  const topByDeals = topAgentsTied(agentList, 'deals');
+  const topByVolume = topAgentsTied(agentList, 'volume');
 
   const markets = distinct(allRows.map(r=>r.market));
   const statuses = distinct(allRows.map(r=>r.status));
-
-  // Helper: render a "top agent" card with name, deals, and volume on one card.
-  const topCard = (label, a) => a ? `
-    <div class="metric">
-      <div class="metric-label">${label}</div>
-      <div class="metric-value sm" style="font-size:16px">${escapeHtml(a.name)}</div>
-      <div style="font-size:10px;color:var(--gray);margin-top:4px;text-transform:uppercase;letter-spacing:.04em">
-        ${a.deals} ${a.deals===1?'deal':'deals'} · ${fmtM(a.volume)}
-      </div>
-    </div>` : '';
 
   document.getElementById('month-content').innerHTML = `
     <div class="metrics">
@@ -790,8 +821,8 @@ function renderMonth() {
       <div class="metric"><div class="metric-label">Closed</div><div class="metric-value">${closedCount}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(tv)}</div></div>
       <div class="metric"><div class="metric-label">Commission</div><div class="metric-value">${fmtM(tc)}</div></div>
-      ${topCard('Top — deals', topByDeals)}
-      ${topByVolume && topByVolume.name !== (topByDeals?.name) ? topCard('Top — volume', topByVolume) : ''}
+      ${tiedTopCard('Top — deals',  topByDeals,  'deals')}
+      ${overlap(topByDeals, topByVolume) ? '' : tiedTopCard('Top — volume', topByVolume, 'volume')}
     </div>
 
     <div class="filter-row">
