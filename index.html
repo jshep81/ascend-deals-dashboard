@@ -238,10 +238,31 @@ input[type=text] { min-width: 220px; }
 
 <script>
 // ================================================================
-// CONFIG — edit these two constants when you have the values
+// CONFIG — three data sources:
+//   1. TASA Contracts 2026 — Jan-Apr San Antonio data
+//   2. Austin Contracts 2026 — Jan-Apr Austin data
+//   3. Consolidated 2026 — May onward, both markets, driven by Market column
 // ================================================================
-const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyeqmqpUJA5qAENMtAmW8NkoRmZ7s24XUZ-qHT38UkuClmVjlPfEqej69iFuI1y8_D4/exec';
-const TOKEN = 'ascend-2026';
+const ENDPOINTS = [
+  {
+    label: 'TASA (Jan-Apr)',
+    url: 'https://script.google.com/macros/s/AKfycbwi54qQJobGc60h7XxruJrsBhb9qn00OAO2IUMnCiq2RqVIezQ0KKmmB4YTUrpq0HV8/exec',
+    token: 'ascend-tasa-2026',
+    defaultMarket: 'San Antonio'
+  },
+  {
+    label: 'Austin (Jan-Apr)',
+    url: 'https://script.google.com/macros/s/AKfycbyO0W5M0gi2VIP72HLZ9OWIBH_v8oa9old7kxyHE-W6VssBmcZPmRLRn4Q3U7l5lYc/exec',
+    token: 'ascend-austin-2026',
+    defaultMarket: 'Austin'
+  },
+  {
+    label: 'Consolidated (May+)',
+    url: 'https://script.google.com/macros/s/AKfycbyeqmqpUJA5qAENMtAmW8NkoRmZ7s24XUZ-qHT38UkuClmVjlPfEqej69iFuI1y8_D4/exec',
+    token: 'ascend-2026',
+    defaultMarket: null   // use the row's Market column, no fallback
+  }
+];
 
 // Canonical roster — Ascend Group team as of May 2026.
 // Each entry: { canonical: 'Full Name', market: 'Austin'|'San Antonio'|'Houston'|'N/A',
@@ -251,10 +272,10 @@ const TOKEN = 'ascend-2026';
 // nicknames, and email-local-part variants. Add to this list as new agents come in.
 const ROSTER = [
   { canonical: 'Adam Williams',       market: 'N/A',         role: 'Admin', aliases: ['adam', 'adam.williams'] },
-  { canonical: 'Alan Foskey',         market: 'Austin',      role: 'Agent', aliases: ['alan'] },
-  { canonical: 'Alex Ellis',          market: 'Austin',      role: 'Agent', aliases: ['alex'] },
+  { canonical: 'Alan Foskey',         market: 'Austin',      role: 'Agent', aliases: ['alan', 'alan ray foskey'] },
+  { canonical: 'Alex Ellis',          market: 'Austin',      role: 'Agent', aliases: ['alex', 'alexander ellis', 'alexander wynne ellis'] },
   { canonical: 'Alyssa Laube',        market: 'Austin',      role: 'Agent', aliases: ['alyssa.laube', 'a. laube'] },
-  { canonical: 'Alyssa McGrath',      market: 'Austin',      role: 'Agent', aliases: ['a. mcgrath'] },
+  { canonical: 'Alyssa McGrath',      market: 'Austin',      role: 'Agent', aliases: ['a. mcgrath', 'alyssa mcgrath'] },
   { canonical: 'Amber Knox',          market: 'Houston',     role: 'Admin', aliases: ['amber', 'amber.knox'] },
   { canonical: 'Analeisa Barron',     market: 'Austin',      role: 'Agent', aliases: ['analeisa'] },
   { canonical: 'Ashley Garcia',       market: 'Austin',      role: 'Agent', aliases: ['a. garcia'] },
@@ -267,10 +288,10 @@ const ROSTER = [
   { canonical: 'Brandon Foskey',      market: 'Austin',      role: 'Agent', aliases: ['brandon'] },
   { canonical: 'Brian Schaffer',      market: 'Austin',      role: 'Agent', aliases: ['brian'] },
   { canonical: 'Brianna Hodges',      market: 'San Antonio', role: 'Agent', aliases: ['brianna'] },
-  { canonical: 'Brooke Taylor',       market: 'San Antonio', role: 'Agent', aliases: ['brooke', 'brooke.taylor'] },
+  { canonical: 'Brooke Taylor',       market: 'San Antonio', role: 'Agent', aliases: ['brooke', 'brooke.taylor', 'brooketaylor'] },
   { canonical: 'Byron Alley',         market: 'Houston',     role: 'Agent', aliases: ['byron', 'bryon', 'bryon alley'] },
   { canonical: 'Caitlan Wells',       market: 'Austin',      role: 'Agent', aliases: ['caitlan'] },
-  { canonical: 'Caitlyn Niemie',      market: 'Austin',      role: 'Agent', aliases: ['caitlyn'] },
+  { canonical: 'Caitlyn Niemie',      market: 'Austin',      role: 'Agent', aliases: ['caitlyn', 'caitlyn neimie', 'caitlyn nieme'] },
   { canonical: 'Carly Kluge',         market: 'Austin',      role: 'Agent', aliases: ['carly'] },
   { canonical: 'Chase Jones',         market: 'Austin',      role: 'Agent', aliases: ['chase'] },
   { canonical: 'Chris Garza',         market: 'San Antonio', role: 'Agent', aliases: ['chris', 'chris.garza'] },
@@ -280,7 +301,7 @@ const ROSTER = [
   { canonical: 'Dana Scott',          market: 'San Antonio', role: 'Agent', aliases: ['dana'] },
   { canonical: 'Daphne Arender',      market: 'Austin',      role: 'Agent', aliases: ['daphne', 'daphne.arender'] },
   { canonical: 'Desmond McClinton',   market: 'Austin',      role: 'Agent', aliases: ['desmond'] },
-  { canonical: 'Devon Harrington',    market: 'Austin',      role: 'Agent', aliases: ['devon'] },
+  { canonical: 'Devon Harrington',    market: 'Austin',      role: 'Agent', aliases: ['devon', 'devon harington'] },
   { canonical: 'Enrique Cordova',     market: 'Austin',      role: 'Agent', aliases: ['enrique'] },
   { canonical: 'Erwin Malveda',       market: 'N/A',         role: 'Admin', aliases: ['erwin'] },
   { canonical: 'Eugenia Caballero',   market: 'Austin',      role: 'Agent', aliases: ['eugenia', 'eugeniac'] },
@@ -288,7 +309,7 @@ const ROSTER = [
   { canonical: 'Gabe Bramlette',      market: 'Austin',      role: 'Agent', aliases: ['gabe'] },
   { canonical: 'Geoff Carl',          market: 'San Antonio', role: 'Agent', aliases: ['geoff'] },
   { canonical: 'George Gavito',       market: 'San Antonio', role: 'Admin', aliases: ['george'] },
-  { canonical: 'Giselle Mireles',     market: 'Austin',      role: 'Agent', aliases: ['giselle'] },
+  { canonical: 'Giselle Mireles',     market: 'Austin',      role: 'Agent', aliases: ['giselle', 'giselle mirales'] },
   { canonical: 'Hariette Cortez',     market: 'N/A',         role: 'Admin', aliases: ['hariette', 'harriette', 'harriette cortez'] },
   { canonical: 'Heather Pasek',       market: 'San Antonio', role: 'Agent', aliases: ['heather'] },
   { canonical: 'Henry Shamdas',       market: 'San Antonio', role: 'Agent', aliases: ['henry'] },
@@ -306,9 +327,9 @@ const ROSTER = [
   { canonical: 'Joyce Sumiran',       market: 'N/A',         role: 'Admin', aliases: ['joyce'] },
   { canonical: 'Justin Burton',       market: 'San Antonio', role: 'Agent', aliases: ['j. burton', 'justin.burton'] },
   { canonical: 'Justin Sheppard',     market: 'Austin',      role: 'Admin', aliases: ['j. sheppard', 'jshep', 'jshep81'] },
-  { canonical: 'Kari Lee Hutchins',   market: 'Austin',      role: 'Agent', aliases: ['kari', 'kari lee', 'kari hutchins', 'kari.lee', 'karilee'] },
+  { canonical: 'Kari Lee Hutchins',   market: 'Austin',      role: 'Agent', aliases: ['kari', 'kari lee', 'kari hutchins', 'kari.lee', 'karilee', 'kari lee hutchinson', 'kari hutchinson'] },
   { canonical: 'Kathleen Dominguez',  market: 'Austin',      role: 'Agent', aliases: ['kathleen', 'kat', 'kat dominguez', 'kat.dominguez'] },
-  { canonical: 'Kaylnne Martin',      market: 'Austin',      role: 'Agent', aliases: ['kaylnne', 'kaylynne', 'kaylynne martin'] },
+  { canonical: 'Kaylnne Martin',      market: 'Austin',      role: 'Agent', aliases: ['kaylnne', 'kaylynne', 'kaylynne martin', 'kalynne martin', 'kalynne'] },
   { canonical: 'Kristin Brownlow',    market: 'Austin',      role: 'Agent', aliases: ['kristin'] },
   { canonical: 'Kyle Roberts',        market: 'Austin',      role: 'Agent', aliases: ['kyle', 'kyle.roberts'] },
   { canonical: 'Laura Vinson',        market: 'Austin',      role: 'Agent', aliases: ['laura.vinson', 'l. vinson'] },
@@ -320,14 +341,14 @@ const ROSTER = [
   { canonical: 'Mark Beel',           market: 'Houston',     role: 'Agent', aliases: ['mark', 'mark.beel'] },
   { canonical: 'Markos Terrazas',     market: 'Austin',      role: 'Agent', aliases: ['markos'] },
   { canonical: 'Mary Lawrence',       market: 'Houston',     role: 'Admin', aliases: ['mary'] },
-  { canonical: 'Matt McDaniel',       market: 'Austin',      role: 'Agent', aliases: ['matt mcdaniel', 'matthew mcdaniel'] },
+  { canonical: 'Matt McDaniel',       market: 'Austin',      role: 'Agent', aliases: ['matt mcdaniel', 'matthew mcdaniel', 'matthew mc daniel'] },
   { canonical: 'Matt Henson',         market: 'Austin',      role: 'Agent', aliases: ['matt henson', 'matthew henson', 'matt.henson'] },
   { canonical: 'Melissa Cesena',      market: 'Austin',      role: 'Agent', aliases: ['m. cesena'] },
   { canonical: 'Melissa Robbins',     market: 'San Antonio', role: 'Agent', aliases: ['melissa.robbins', 'm. robbins'] },
   { canonical: 'Michell Atkins',      market: 'Austin',      role: 'Agent', aliases: ['michell', 'michelle', 'michelle atkins', 'm. atkins'] },
-  { canonical: 'Mike Diener',         market: 'Austin',      role: 'Agent', aliases: ['mike', 'michael diener', 'mike.diener'] },
+  { canonical: 'Mike Diener',         market: 'Austin',      role: 'Agent', aliases: ['mike', 'michael diener', 'mike.diener', 'mke diener'] },
   { canonical: 'Morana Duran',        market: 'Austin',      role: 'Agent', aliases: ['morana', 'mo', 'mo duran'] },
-  { canonical: 'Nate Dominguez',      market: 'Austin',      role: 'Agent', aliases: ['nate', 'nathan dominguez', 'nate.dominguez'] },
+  { canonical: 'Nate Dominguez',      market: 'Austin',      role: 'Agent', aliases: ['nate', 'nathan dominguez', 'nathaniel dominguez', 'nate.dominguez'] },
   { canonical: 'Nicholas Wilt',       market: 'Austin',      role: 'Agent', aliases: ['nicholas', 'nick', 'nick wilt', 'nicholas.wilt'] },
   { canonical: 'Nikos Kourtis',       market: 'San Antonio', role: 'Agent', aliases: ['nikos'] },
   { canonical: 'Niles Haworth',       market: 'Houston',     role: 'Agent', aliases: ['niles'] },
@@ -354,7 +375,24 @@ const ROSTER = [
   { canonical: 'Vlatka Auerbach',     market: 'Austin',      role: 'Agent', aliases: ['vlatka'] },
   { canonical: 'Wade Wallace',        market: 'San Antonio', role: 'Agent', aliases: ['wade'] },
   { canonical: 'William Bach',        market: 'Austin',      role: 'Agent', aliases: ['william', 'will', 'will bach', 'will.bach'] },
-  { canonical: 'Zaid Rafati',         market: 'San Antonio', role: 'Agent', aliases: ['zaid'] }
+  { canonical: 'Zaid Rafati',         market: 'San Antonio', role: 'Agent', aliases: ['zaid'] },
+  // ----- Former / departed / external agents who appear in Jan-Apr 2026 deals -----
+  { canonical: 'Adrian Finley',       market: 'San Antonio', role: 'Former', aliases: ['adrian'] },
+  { canonical: 'Amanda Callender',    market: 'San Antonio', role: 'Former', aliases: ['amanda'] },
+  { canonical: 'Anthony Harris',      market: 'Austin',      role: 'Former', aliases: ['anthony'] },
+  { canonical: 'Barbara Giglio',      market: 'Austin',      role: 'Former', aliases: ['barbara'] },
+  { canonical: 'Gina Neill',          market: 'San Antonio', role: 'Former', aliases: ['gina'] },
+  { canonical: 'Gudrun Tucker',       market: 'Austin',      role: 'Former', aliases: ['gudrun'] },
+  { canonical: 'Jay Nolan',           market: 'Austin',      role: 'Former', aliases: ['jay'] },
+  { canonical: 'Jeff Rosin',          market: 'San Antonio', role: 'Former', aliases: [] },
+  { canonical: 'Jewels Pawlik',       market: 'San Antonio', role: 'Former', aliases: ['jewels'] },
+  { canonical: 'Kaila Pucci',         market: 'Austin',      role: 'Former', aliases: ['kaila', 'kaula pucci'] },
+  { canonical: 'Melissa Gatto',       market: 'Austin',      role: 'Former', aliases: [] },
+  { canonical: 'Nate Bramlette',      market: 'Austin',      role: 'Former', aliases: [] },
+  { canonical: 'Nazanin Garcia',      market: 'Austin',      role: 'Former', aliases: ['nazanin'] },
+  { canonical: 'Rachel Beavers',      market: 'Austin',      role: 'Former', aliases: ['rachel'] },
+  { canonical: 'Tanya Torres',        market: 'San Antonio', role: 'Former', aliases: ['tanya'] },
+  { canonical: 'Trish Black',         market: 'Austin',      role: 'Former', aliases: ['trish'] }
 ];
 
 // ================================================================
@@ -440,8 +478,20 @@ const _rosterByCanonical = (() => {
 
 function resolveAgentName(raw) {
   if (!raw) return { canonical: 'Unknown', resolved: false };
-  const trimmed = String(raw).trim();
+  let trimmed = String(raw).trim();
   if (!trimmed) return { canonical: 'Unknown', resolved: false };
+
+  // Handle compound assignments like "Marianne Schaffer/Brian Schaffer" or "Nate Bramlette / Gabe Bramlette"
+  // Attribute to the first name in the combo.
+  if (/[\/&]| and | \+ /i.test(trimmed)) {
+    const firstPart = trimmed.split(/\s*[\/&]\s*|\s+and\s+|\s*\+\s*/i)[0].trim();
+    if (firstPart && firstPart !== trimmed) {
+      const r = resolveAgentName(firstPart);
+      // Mark resolved name with a flag we can surface in the UI later
+      return { canonical: r.canonical, resolved: r.resolved, compound: true };
+    }
+  }
+
   const key = _normName(trimmed);
   if (_aliasIndex[key]) return { canonical: _aliasIndex[key], resolved: true };
   // Loose match: first + last name agree, allowing middle names.
@@ -462,6 +512,13 @@ function resolveAgentName(raw) {
     // matches even if written without the period. Skip if there's a non-Sr namesake.
     const inputStripped = _stripSuffix(key);
     if (_aliasIndex[inputStripped]) return { canonical: _aliasIndex[inputStripped], resolved: true };
+    // Third pass: first+last match where canonical may have middle names but input doesn't
+    for (const r of ROSTER) {
+      const cParts = _normName(r.canonical).split(/\s+/);
+      if (cParts.length > parts.length && cParts[0] === first && cParts[cParts.length-1] === last) {
+        return { canonical: r.canonical, resolved: true };
+      }
+    }
   }
   return { canonical: trimmed, resolved: false };
 }
@@ -500,40 +557,54 @@ function statusClass(s) {
 // NORMALIZE
 // ================================================================
 function normalizeRow(row) {
-  const closeRaw = row['close date'] || '';
+  // Schema-tolerant getter: matches headers case-insensitively, tries multiple aliases
+  const g = (...keys) => {
+    const rk = Object.keys(row);
+    for (const k of keys) {
+      const wanted = k.toLowerCase().trim();
+      const f = rk.find(h => String(h).toLowerCase().trim() === wanted);
+      if (f && row[f] !== '' && row[f] !== null && row[f] !== undefined) return String(row[f]);
+    }
+    return '';
+  };
+
+  const closeRaw = g('close date', 'closing date', 'close');
   const tabYear = (typeof row._tabYear === 'number') ? row._tabYear : null;
   const tabMonth = (typeof row._tabMonth === 'number') ? row._tabMonth : null;
   let closeDate = parseDate(closeRaw);
   if (!closeDate && tabYear !== null && tabMonth !== null) {
     closeDate = new Date(tabYear, tabMonth, 1);
   }
-  const rawAgent = row['agent'] || '';
+  const rawAgent = g('agent', 'listing agent', 'buyer agent');
   const resolution = resolveAgentName(rawAgent);
+  const firstName = g('first name', 'first');
+  const lastName = g('last name', 'last');
   return {
-    firstName: row['first name'] || '',
-    lastName: row['last name'] || '',
-    email: row['email'] || '',
-    address: row['address'] || '',
-    zip: row['zip code'] || '',
-    executed: row['executed'] || '',
-    optionDate: row['option'] || '',
-    financingDate: row['financing'] || '',
+    firstName, lastName,
+    email: g('email'),
+    address: g('address', 'property address'),
+    zip: g('zip code', 'zip'),
+    executed: g('executed', 'executed date', 'execution date', 'effective date', 'contract date'),
+    optionDate: g('option', 'option end date', 'option period', 'option deadline'),
+    financingDate: g('financing', 'finance cont date', 'finance approval date', 'financing deadline'),
     closeDate,
     closeDateRaw: closeRaw || '—',
-    price: parseNum(row['price']),
-    market: (row['market'] || '').trim() || 'Other',
+    price: parseNum(g('price', 'sales price', 'purchase price')),
+    market: (g('market') || '').trim() || row._defaultMarket || 'Other',
     rawAgent,
     agent: resolution.canonical,
     agentResolved: resolution.resolved,
-    lender: row['lender'] || '',
-    titleCo: row['title'] || '',
-    source: (row['source'] || '').trim(),
-    totalCommission: parseNum(row['total commission']),
-    agencyCommission: parseNum(row['agency commission']),
-    status: (row['status'] || '').trim(),
-    notes: row['notes'] || '',
+    agentCompound: !!resolution.compound,
+    lender: g('lender'),
+    titleCo: g('title', 'title company'),
+    source: (g('source', 'lead source') || '').trim(),
+    totalCommission: parseNum(g('total commission', 'commissions', 'gross commission', 'gross commission income', 'gci')),
+    agencyCommission: parseNum(g('agency commission', 'company dollar', 'agency $')),
+    status: (g('status') || '').trim(),
+    notes: g('notes', 'note', 'comments'),
     _tab: row._tab || '',
-    _client: [row['first name'], row['last name']].filter(Boolean).join(' ').trim()
+    _source: row._source || '',
+    _client: [firstName, lastName].filter(Boolean).join(' ').trim()
   };
 }
 
@@ -907,33 +978,36 @@ function switchMain(btn) {
 }
 
 // ================================================================
-// FETCH
+// FETCH — pulls from all configured endpoints in parallel and merges
 // ================================================================
-function fetchJSONP() {
+function fetchOne(ep) {
   return new Promise(resolve => {
-    if (!ENDPOINT || ENDPOINT.startsWith('REPLACE')) {
-      resolve({ rows: [], error: 'Endpoint not configured. Edit the ENDPOINT constant at the top of index.html.' });
+    if (!ep.url || ep.url.startsWith('REPLACE')) {
+      resolve({ rows: [], error: `${ep.label}: endpoint not configured` });
       return;
     }
-    const cbName = 'cb_ascend_' + Date.now();
+    const cbName = 'cb_ascend_' + ep.label.replace(/\W/g,'') + '_' + Date.now();
     const script = document.createElement('script');
     const timeout = setTimeout(() => {
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
-      resolve({ rows: [], error: 'Request timed out (45s)' });
+      resolve({ rows: [], error: `${ep.label}: timed out` });
     }, 45000);
     window[cbName] = function(data) {
       clearTimeout(timeout);
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
-      if (data && data.error) { resolve({ rows: [], error: data.error }); return; }
-      resolve({ rows: (data && data.rows) || [], tabs: data?.tabs || [], generatedAt: data?.generatedAt });
+      if (data && data.error) { resolve({ rows: [], error: `${ep.label}: ${data.error}` }); return; }
+      // Tag every row with the endpoint's defaultMarket so we can fall back
+      // when the source sheet doesn't have a Market column.
+      const tagged = ((data && data.rows) || []).map(r => ({ ...r, _defaultMarket: ep.defaultMarket || null, _source: ep.label }));
+      resolve({ rows: tagged, tabs: data?.tabs || [], generatedAt: data?.generatedAt });
     };
-    script.src = `${ENDPOINT}?token=${encodeURIComponent(TOKEN)}&callback=${cbName}`;
+    script.src = `${ep.url}?token=${encodeURIComponent(ep.token)}&callback=${cbName}`;
     script.onerror = () => {
       clearTimeout(timeout);
       delete window[cbName];
-      resolve({ rows: [], error: 'Apps Script load failed — verify deployment is "Anyone" access.' });
+      resolve({ rows: [], error: `${ep.label}: script load failed (verify deployment is "Anyone" access)` });
     };
     document.head.appendChild(script);
   });
@@ -942,15 +1016,25 @@ function fetchJSONP() {
 async function loadData() {
   document.getElementById('status-text').textContent = 'Loading...';
   document.getElementById('error-box').innerHTML = '';
-  const result = await fetchJSONP();
-  if (result.error) {
+  const results = await Promise.all(ENDPOINTS.map(fetchOne));
+  const errors = results.map(r => r.error).filter(Boolean);
+  const allRaw = results.flatMap(r => r.rows);
+  if (errors.length) {
+    document.getElementById('error-box').innerHTML = errors.map(e =>
+      `<div class="error-banner">⚠ ${escapeHtml(e)}</div>`).join('');
+  }
+  if (allRaw.length === 0 && errors.length) {
     document.getElementById('status-text').textContent = 'Error';
-    document.getElementById('error-box').innerHTML = `<div class="error-banner">⚠ ${escapeHtml(result.error)}</div>`;
     allRows = [];
   } else {
-    allRows = result.rows.map(normalizeRow).filter(r => r.agent && r.address);
+    allRows = allRaw.map(normalizeRow).filter(r => r.agent && r.address);
     lastLoadedAt = new Date();
-    document.getElementById('status-text').textContent = `${allRows.length} deals · ${lastLoadedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    const sourceCounts = ENDPOINTS.map(ep => {
+      const n = allRaw.filter(r => r._source === ep.label).length;
+      return `${ep.label.split(' ')[0]}:${n}`;
+    }).join(' ');
+    document.getElementById('status-text').textContent =
+      `${allRows.length} deals (${sourceCounts}) · ${lastLoadedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   }
   populateFilters();
   renderYTD();
