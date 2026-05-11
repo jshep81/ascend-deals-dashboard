@@ -475,18 +475,70 @@ const _rosterByCanonical = (() => {
   return m;
 })();
 
+/**
+ * Returns all canonical agents in a compound string like
+ * "Cesena/Rhea Morton" or "Nate Bramlette & Gabe Bramlette".
+ * Used for full-credit aggregation — each agent gets their own
+ * deal count and volume contribution.
+ */
+function resolveAllAgents(raw) {
+  if (!raw) return [];
+  const trimmed = String(raw).trim();
+  if (!trimmed) return [];
+  const parts = trimmed.split(/\s*[\/&]\s*|\s+and\s+|\s*\+\s*/i).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return [];
+  // Resolve each part; preserve order; dedupe
+  const seen = new Set();
+  const out = [];
+  for (const p of parts) {
+    const r = _resolveAgentSingle(p);
+    if (!r) continue;
+    if (seen.has(r.canonical)) continue;
+    seen.add(r.canonical);
+    out.push(r);
+  }
+  return out;
+}
+
+function _resolveAgentSingle(raw) {
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return null;
+  const key = _normName(trimmed);
+  if (_aliasIndex[key]) return { canonical: _aliasIndex[key], resolved: true };
+  const parts = key.split(/\s+/);
+  if (parts.length >= 2) {
+    const first = parts[0], last = parts[parts.length-1];
+    for (const r of ROSTER) {
+      const cParts = _normName(r.canonical).split(/\s+/);
+      const cFirst = cParts[0], cLast = cParts[cParts.length-1];
+      if (first === cFirst && last === cLast && cParts.length === parts.length) {
+        return { canonical: r.canonical, resolved: true };
+      }
+    }
+    const inputStripped = _stripSuffix(key);
+    if (_aliasIndex[inputStripped]) return { canonical: _aliasIndex[inputStripped], resolved: true };
+    for (const r of ROSTER) {
+      const cParts = _normName(r.canonical).split(/\s+/);
+      if (cParts.length > parts.length && cParts[0] === first && cParts[cParts.length-1] === last) {
+        return { canonical: r.canonical, resolved: true };
+      }
+    }
+  }
+  return { canonical: trimmed, resolved: false };
+}
+
 function resolveAgentName(raw) {
   if (!raw) return { canonical: 'Unknown', resolved: false };
   let trimmed = String(raw).trim();
   if (!trimmed) return { canonical: 'Unknown', resolved: false };
 
-  // Handle compound assignments like "Marianne Schaffer/Brian Schaffer" or "Nate Bramlette / Gabe Bramlette"
-  // Attribute to the first name in the combo.
+  // Handle compound assignments — return PRIMARY (first listed) for display purposes,
+  // but the all-agents list is computed separately by resolveAllAgents().
   if (/[\/&]| and | \+ /i.test(trimmed)) {
     const firstPart = trimmed.split(/\s*[\/&]\s*|\s+and\s+|\s*\+\s*/i)[0].trim();
     if (firstPart && firstPart !== trimmed) {
       const r = resolveAgentName(firstPart);
-      // Mark resolved name with a flag we can surface in the UI later
       return { canonical: r.canonical, resolved: r.resolved, compound: true };
     }
   }
@@ -576,6 +628,10 @@ function normalizeRow(row) {
   }
   const rawAgent = g('agent', 'listing agent', 'buyer agent');
   const resolution = resolveAgentName(rawAgent);
+  // Compound deals split into all participating agents — both get full credit.
+  const allResolved = resolveAllAgents(rawAgent);
+  const agentCanonicals = allResolved.length ? allResolved.map(r => r.canonical) : [resolution.canonical];
+  const allResolvedFlag = allResolved.length ? allResolved.every(r => r.resolved) : resolution.resolved;
   const firstName = g('first name', 'first');
   const lastName = g('last name', 'last');
   return {
@@ -592,7 +648,8 @@ function normalizeRow(row) {
     market: normalizeMarket((g('market') || '').trim() || row._defaultMarket || 'Other'),
     rawAgent,
     agent: resolution.canonical,
-    agentResolved: resolution.resolved,
+    agents: agentCanonicals,                    // all participating agents (1+)
+    agentResolved: allResolvedFlag,
     agentCompound: !!resolution.compound,
     lender: g('lender'),
     titleCo: g('title', 'title company'),
@@ -665,15 +722,20 @@ function tiedTopCard(label, tied, metric) {
 function groupByAgent(rows) {
   const map = {};
   rows.forEach(r => {
-    const name = r.agent || 'Unknown';
-    if (!map[name]) map[name] = { name, deals:0, volume:0, commission:0, statuses:[], markets:new Set(), sources:new Set(), resolved: r.agentResolved };
-    map[name].deals++;
-    map[name].volume += r.price || 0;
-    map[name].commission += r.totalCommission || 0;
-    if (r.status) map[name].statuses.push(r.status);
-    if (r.market) map[name].markets.add(r.market);
-    if (r.source) map[name].sources.add(r.source);
-    if (r.agentResolved) map[name].resolved = true;
+    // Credit EVERY agent in compound deals — Cesena/Rhea Morton both
+    // get full deal count and full volume contribution.
+    const names = (r.agents && r.agents.length) ? r.agents : [r.agent || 'Unknown'];
+    names.forEach(name => {
+      if (!map[name]) map[name] = { name, deals:0, volume:0, commission:0, statuses:[], markets:new Set(), sources:new Set(), resolved: false, sharedDeals:0 };
+      map[name].deals++;
+      map[name].volume += r.price || 0;
+      map[name].commission += r.totalCommission || 0;
+      if (r.status) map[name].statuses.push(r.status);
+      if (r.market) map[name].markets.add(r.market);
+      if (r.source) map[name].sources.add(r.source);
+      if (r.agentResolved) map[name].resolved = true;
+      if (names.length > 1) map[name].sharedDeals++;
+    });
   });
   return Object.values(map);
 }
