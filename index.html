@@ -430,6 +430,21 @@ function fmtDate(v) {
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 
+/**
+ * Collapse market spellings into canonical forms so "Austin" and "AUSTIN"
+ * don't show as separate rows in the Team pane.
+ */
+function normalizeMarket(m) {
+  if (!m) return 'Other';
+  const k = String(m).trim().toLowerCase();
+  if (!k || k === 'n/a' || k === 'na') return 'Other';
+  if (k === 'austin' || k.includes('austin')) return 'Austin';
+  if (k === 'san antonio' || k === 'sa' || k === 'tasa' || k.includes('san antonio')) return 'San Antonio';
+  if (k === 'houston' || k.includes('houston')) return 'Houston';
+  // Default: title-case whatever's there
+  return m.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ================================================================
 // NAME RESOLUTION
 // ================================================================
@@ -574,7 +589,7 @@ function normalizeRow(row) {
     closeDate,
     closeDateRaw: closeRaw || '—',
     price: parseNum(g('price', 'sales price', 'purchase price')),
-    market: (g('market') || '').trim() || row._defaultMarket || 'Other',
+    market: normalizeMarket((g('market') || '').trim() || row._defaultMarket || 'Other'),
     rawAgent,
     agent: resolution.canonical,
     agentResolved: resolution.resolved,
@@ -672,9 +687,8 @@ function renderYTD() {
   const ytd = allRows.filter(r => r.closeDate && r.closeDate.getFullYear() === yr);
   const totalCount = ytd.length;
   const totalVol = ytd.reduce((s,r)=>s+r.price,0);
-  // commission and "closed" intentionally not surfaced — closed status was unreliable
-  const pending = ytd.filter(r => r.status && !/terminat/i.test(r.status)).length;
-  const terminated = ytd.filter(r => /terminat/i.test(r.status)).length;
+  // commission, "closed", and "terminated" intentionally not surfaced
+  // (closed status was unreliable; terminated rows are filtered out at load).
   const agentCount = new Set(ytd.map(r=>r.agent)).size;
 
   // Monthly trend
@@ -713,8 +727,6 @@ function renderYTD() {
   document.getElementById('ytd-content').innerHTML = `
     <div class="metrics">
       <div class="metric"><div class="metric-label">Contracts ${yr}</div><div class="metric-value">${totalCount}</div></div>
-      <div class="metric"><div class="metric-label">Pending</div><div class="metric-value">${pending}</div></div>
-      <div class="metric"><div class="metric-label">Terminated</div><div class="metric-value">${terminated}</div></div>
       <div class="metric"><div class="metric-label">Volume</div><div class="metric-value">${fmtM(totalVol)}</div></div>
       <div class="metric"><div class="metric-label">Active agents</div><div class="metric-value">${agentCount}</div></div>
       ${tiedTopCard('Top YTD — deals',  topByDealsYTD,  'deals')}
@@ -1043,6 +1055,35 @@ function fetchOne(ep) {
   });
 }
 
+/**
+ * Clean the loaded rows:
+ *   1. Drop rows where status contains "Terminat" (cancelled deals shouldn't count).
+ *   2. Drop duplicates — rows with the same address + close date + agent are
+ *      the same deal entered twice (TC accidental double-paste, dual-side artifacts).
+ * Returns { clean, droppedTerminated, droppedDuplicates } so we can show counts.
+ */
+function cleanRows(rows) {
+  const droppedTerminated = [];
+  const seen = new Set();
+  const clean = [];
+  let droppedDuplicates = 0;
+  for (const r of rows) {
+    if (r.status && /terminat/i.test(r.status)) {
+      droppedTerminated.push(r);
+      continue;
+    }
+    const closeMs = r.closeDate ? r.closeDate.getTime() : 0;
+    const key = `${(r.address||'').toLowerCase().trim()}|${closeMs}|${(r.agent||'').toLowerCase().trim()}`;
+    if (seen.has(key)) {
+      droppedDuplicates++;
+      continue;
+    }
+    seen.add(key);
+    clean.push(r);
+  }
+  return { clean, droppedTerminated, droppedDuplicates };
+}
+
 async function loadData() {
   document.getElementById('status-text').textContent = 'Loading...';
   document.getElementById('error-box').innerHTML = '';
@@ -1057,14 +1098,16 @@ async function loadData() {
     document.getElementById('status-text').textContent = 'Error';
     allRows = [];
   } else {
-    allRows = allRaw.map(normalizeRow).filter(r => r.agent && r.address);
+    const raw = allRaw.map(normalizeRow).filter(r => r.agent && r.address);
+    const { clean, droppedTerminated, droppedDuplicates } = cleanRows(raw);
+    allRows = clean;
     lastLoadedAt = new Date();
-    const sourceCounts = ENDPOINTS.map(ep => {
-      const n = allRaw.filter(r => r._source === ep.label).length;
-      return `${ep.label.split(' ')[0]}:${n}`;
-    }).join(' ');
+    const noteParts = [];
+    if (droppedTerminated.length) noteParts.push(`${droppedTerminated.length} terminated`);
+    if (droppedDuplicates) noteParts.push(`${droppedDuplicates} dup`);
+    const noteStr = noteParts.length ? ` · filtered ${noteParts.join(' + ')}` : '';
     document.getElementById('status-text').textContent =
-      `${allRows.length} deals (${sourceCounts}) · ${lastLoadedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+      `${allRows.length} deals${noteStr} · ${lastLoadedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   }
   populateFilters();
   renderYTD();
