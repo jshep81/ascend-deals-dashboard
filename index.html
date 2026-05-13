@@ -244,7 +244,19 @@ const ENDPOINTS = [
     label: 'Ascend Contracts 2026',
     url: 'https://script.google.com/macros/s/AKfycbzaSUk1YK7CauoCqElmAtvylREZob-HDd0IHR6a4BiEifBV56PEYFlnK9Yw2cSx6bHs/exec',
     token: 'ascend-2026',
-    defaultMarket: null
+    defaultMarket: null,
+    hidden: false
+  },
+  {
+    // Partner production (Paradisa Contracts 2026). Deals count in YTD
+    // totals, monthly trend, market splits, contracts count — but never
+    // surface in agent leaderboards, the Agents tab, the Team agent
+    // list, or the Roster. Controlled by the `hidden` flag below.
+    label: 'Paradisa Contracts 2026',
+    url: 'PASTE_PARADISA_URL_HERE',
+    token: 'ascend-2026',
+    defaultMarket: 'Austin',
+    hidden: true
   }
 ];
 
@@ -660,6 +672,7 @@ function normalizeRow(row) {
     notes: g('notes', 'note', 'comments'),
     _tab: row._tab || '',
     _source: row._source || '',
+    _hidden: !!row._hidden,
     _client: [firstName, lastName].filter(Boolean).join(' ').trim()
   };
 }
@@ -719,7 +732,19 @@ function tiedTopCard(label, tied, metric) {
     </div>`;
 }
 
+// Returns rows that should appear in agent-level views. Rows tagged as
+// _hidden (currently: partner production from Paradisa) are excluded.
+// Use this for any leaderboard, roster, agent list, or per-agent metric.
+// For top-level totals (volume, deal count, market splits, monthly trend)
+// pass the unfiltered set instead — those should reflect combined production.
+function visibleRows(rows) {
+  return (rows || []).filter(r => !r._hidden);
+}
+
 function groupByAgent(rows) {
+  // groupByAgent always excludes hidden rows. There's no view where we
+  // want hidden production to appear under an agent name.
+  rows = visibleRows(rows);
   const map = {};
   rows.forEach(r => {
     // Credit EVERY agent in compound deals — Cesena/Rhea Morton both
@@ -747,11 +772,13 @@ function distinct(arr) { return [...new Set(arr)].filter(Boolean); }
 function renderYTD() {
   const yr = new Date().getFullYear();
   const ytd = allRows.filter(r => r.closeDate && r.closeDate.getFullYear() === yr);
-  const totalCount = ytd.length;
-  const totalVol = ytd.reduce((s,r)=>s+r.price,0);
+  const totalCount = ytd.length;             // combined: Ascend + partner production
+  const totalVol = ytd.reduce((s,r)=>s+r.price,0);  // combined
   // commission, "closed", and "terminated" intentionally not surfaced
   // (closed status was unreliable; terminated rows are filtered out at load).
-  const agentCount = new Set(ytd.map(r=>r.agent)).size;
+  // Active agents counts only visible (Ascend) agents — partner rows have
+  // generic placeholder names and shouldn't inflate the team headcount.
+  const agentCount = new Set(visibleRows(ytd).map(r=>r.agent)).size;
 
   // Monthly trend
   const byMonth = Array.from({length:12}, ()=>({deals:0,volume:0}));
@@ -915,12 +942,15 @@ function renderMonth() {
         <tbody>${filtered.length ? filtered.map(r=>`<tr>
           <td title="${escapeHtml(r._client)}">${escapeHtml(r._client||'—')}</td>
           <td title="${escapeHtml(r.address)}">${escapeHtml(r.address||'—')}</td>
-          <td><div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(r.agent||'?')}">${initials(r.agent||'?')}</div><span>${escapeHtml(r.agent||'—')}</span>${r.agentResolved?'':'<span class="badge market-other" title="Not on roster" style="margin-left:6px">?</span>'}</div></td>
+          <td>${r._hidden
+            ? `<span class="muted">—</span>`
+            : `<div class="agent-cell"><div class="avatar" style="width:24px;height:24px;font-size:9px;${avatarStyle(r.agent||'?')}">${initials(r.agent||'?')}</div><span>${escapeHtml(r.agent||'—')}</span>${r.agentResolved?'':'<span class="badge market-other" title="Not on roster" style="margin-left:6px">?</span>'}</div>`
+          }</td>
           <td>${marketBadge(r.market)}</td>
           <td class="r num" style="font-weight:500">${r.price>0?fmtFull(r.price):'—'}</td>
           <td class="muted">${escapeHtml(fmtDate(r.closeDateRaw))}</td>
           <td><span class="${statusClass(r.status)}">${escapeHtml(r.status||'—')}</span></td>
-          <td class="muted">${escapeHtml(r.source||'—')}</td>
+          <td class="muted">${r._hidden ? '—' : escapeHtml(r.source||'—')}</td>
         </tr>`).join('') : `<tr><td colspan="8" class="empty-state">No contracts with a close date in ${MONTHS[mo]} ${yr}</td></tr>`}</tbody>
       </table></div>
     </div>
@@ -961,7 +991,10 @@ function renderAgents() {
   const sort = document.getElementById('sort-filter').value;
   const sf = document.getElementById('status-filter').value;
   const search = (document.getElementById('agent-search').value || '').toLowerCase();
-  let rows = allRows.filter(r => (mkt==='all'||r.market===mkt) && (sf==='all'||r.status===sf));
+  // Agents tab is a per-agent view, so everything here uses visible rows
+  // only. Partner / hidden production is intentionally excluded from this
+  // tab because it shouldn't appear under any named agent.
+  let rows = visibleRows(allRows).filter(r => (mkt==='all'||r.market===mkt) && (sf==='all'||r.status===sf));
   let agents = groupByAgent(rows);
   if (search) agents = agents.filter(a => a.name.toLowerCase().includes(search));
   if (sort==='volume') agents.sort((a,b)=>b.volume-a.volume);
@@ -994,8 +1027,9 @@ function renderAgents() {
 // ================================================================
 function renderTeam() {
   const rows = allRows;
-  const tv = rows.reduce((s,r)=>s+r.price,0);
-  const agentCount = new Set(rows.map(r=>r.agent)).size;
+  const tv = rows.reduce((s,r)=>s+r.price,0);    // combined deals total
+  // Headcount is named team only — exclude partner/hidden production.
+  const agentCount = new Set(visibleRows(rows).map(r=>r.agent)).size;
   document.getElementById('team-metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Total agents</div><div class="metric-value">${agentCount}</div></div>
     <div class="metric"><div class="metric-label">Total deals</div><div class="metric-value">${rows.length}</div></div>
@@ -1009,9 +1043,10 @@ function renderTeam() {
     <tr><td>${marketBadge(k)}</td><td class="r">${v.deals}</td><td class="r">${fmtM(v.vol)}</td></tr>`).join('') +
     `<tr style="border-top:1px solid var(--cream-border)"><td style="font-weight:500">Total</td><td class="r" style="font-weight:500">${rows.length}</td><td class="r" style="font-weight:500">${fmtM(tv)}</td></tr>`;
 
-  // Sources
+  // Sources — only visible rows, otherwise the "Partner" bucket from
+  // hidden rows would appear and effectively reveal partner production.
   const sm = {};
-  rows.forEach(r => { const k=r.source||'Unknown'; if(!sm[k]) sm[k]={deals:0,vol:0}; sm[k].deals++; sm[k].vol+=r.price||0; });
+  visibleRows(rows).forEach(r => { const k=r.source||'Unknown'; if(!sm[k]) sm[k]={deals:0,vol:0}; sm[k].deals++; sm[k].vol+=r.price||0; });
   document.getElementById('source-tbody').innerHTML = Object.entries(sm).sort((a,b)=>b[1].deals-a[1].deals).map(([k,v])=>`
     <tr><td>${escapeHtml(k)}</td><td class="r">${v.deals}</td><td class="r">${fmtM(v.vol)}</td></tr>`).join('');
 
@@ -1042,9 +1077,11 @@ function renderTeam() {
 // RENDER — Roster (name reconciliation)
 // ================================================================
 function renderRoster() {
-  // Group by raw agent name as it appears in the sheet
+  // Group by raw agent name as it appears in the sheet. Hidden/partner
+  // production is excluded here — the Roster tab is name reconciliation
+  // for Ascend only.
   const map = {};
-  allRows.forEach(r => {
+  visibleRows(allRows).forEach(r => {
     const raw = r.rawAgent || '(blank)';
     if (!map[raw]) map[raw] = { raw, canonical: r.agent, resolved: r.agentResolved, deals:0, volume:0 };
     map[raw].deals++;
@@ -1086,8 +1123,10 @@ function switchMain(btn) {
 // ================================================================
 function fetchOne(ep) {
   return new Promise(resolve => {
-    if (!ep.url || ep.url.startsWith('REPLACE')) {
-      resolve({ rows: [], error: `${ep.label}: endpoint not configured` });
+    if (!ep.url || ep.url.startsWith('REPLACE') || ep.url.startsWith('PASTE_')) {
+      // Endpoint slot exists but URL not filled in. Silently skip so the
+      // dashboard still loads with whatever IS configured.
+      resolve({ rows: [], tabs: [] });
       return;
     }
     const cbName = 'cb_ascend_' + ep.label.replace(/\W/g,'') + '_' + Date.now();
@@ -1103,8 +1142,15 @@ function fetchOne(ep) {
       if (script.parentNode) script.parentNode.removeChild(script);
       if (data && data.error) { resolve({ rows: [], error: `${ep.label}: ${data.error}` }); return; }
       // Tag every row with the endpoint's defaultMarket so we can fall back
-      // when the source sheet doesn't have a Market column.
-      const tagged = ((data && data.rows) || []).map(r => ({ ...r, _defaultMarket: ep.defaultMarket || null, _source: ep.label }));
+      // when the source sheet doesn't have a Market column. Also propagate
+      // the endpoint's hidden flag so downstream code can filter rows that
+      // shouldn't appear in agent-level views.
+      const tagged = ((data && data.rows) || []).map(r => ({
+        ...r,
+        _defaultMarket: ep.defaultMarket || null,
+        _source: ep.label,
+        _hidden: !!(r._hidden || ep.hidden)
+      }));
       resolve({ rows: tagged, tabs: data?.tabs || [], generatedAt: data?.generatedAt });
     };
     script.src = `${ep.url}?token=${encodeURIComponent(ep.token)}&callback=${cbName}`;
