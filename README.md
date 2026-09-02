@@ -122,3 +122,12 @@ When a new agent shows up in the sheet:
 2. Find their raw name; copy it.
 3. In `index.html`, add a new entry to `ROSTER` — `canonical` is their proper full name; any sheet variants go in `aliases`.
 4. Commit, push, refresh the dashboard.
+
+## Access (from 2026-09-02)
+
+The live dashboard is served from the Ascend Team Hub at
+<https://ascend-team-resources.netlify.app/deals/>, behind Google Workspace sign-in
+(Netlify Identity, `team` role). This site 302-redirects all traffic there via `_redirects`.
+
+`index.html` here remains the source of record: edit it, then copy the built file into
+the hub's `deals/index.html` (the hub adds only an auth-guard script in `<head>`).

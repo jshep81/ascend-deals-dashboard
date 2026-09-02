@@ -1,0 +1,8 @@
+# The Deals Dashboard now lives inside the Ascend Team Hub at /deals/, so it sits
+# behind the hub's Google Workspace sign-in and shares one Identity user list.
+# Netlify Identity is per-site, so this site cannot validate the hub's JWT itself —
+# hosting the dashboard as a hub path is what makes one login possible.
+#
+# The 302! is forced so it applies even though index.html still exists in this repo
+# (kept deliberately: it is the rollback copy and the source of the /deals/ page).
+/*  https://ascend-team-resources.netlify.app/deals/  302!
